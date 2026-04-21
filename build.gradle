@@ -86,8 +86,8 @@ jacocoTestReport {
 // SonarCloud configuration
 sonar {
     properties {
-        property 'sonar.projectKey', 'your-github-username_dway-backend'
-        property 'sonar.organization', 'Nicat667'
+        property 'sonar.projectKey', 'Nicat667_Dway-backend'
+        property 'sonar.organization', 'nicat667'
         property 'sonar.host.url', 'https://sonarcloud.io'
         property 'sonar.coverage.jacoco.xmlReportPaths',
                 'build/reports/jacoco/test/jacocoTestReport.xml'

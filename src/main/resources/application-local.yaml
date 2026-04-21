@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/dway_local
+    username: postgres
+    password: postgres
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: false
+
+  data:
+    redis:
+      host: localhost
+      port: 6380
+
+  liquibase:
+    enabled: true
+
+app:
+  jwt:
+    secret: dW@y$3cr3tK3y#2024!xK9mN2pR5vT7wY9uZeQ3xLzA4bF6hJ1cD0gS8kM2nP5rV7tW9yB
+
+logging:
+  level:
+    com.dway: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG

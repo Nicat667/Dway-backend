@@ -1,0 +1,95 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.5'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.sonarqube' version '5.0.0.4638'
+    id 'jacoco'
+}
+
+group = 'com.dway'
+version = '0.0.1-SNAPSHOT'
+description = 'dway-backend'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    // Spring Boot core
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // Database
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.liquibase:liquibase-core'
+
+    // JWT
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    // MapStruct
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+    // AWS S3
+    implementation 'software.amazon.awssdk:s3:2.25.0'
+
+    // Firebase
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
+
+    // Swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// JaCoCo — measures test coverage, SonarCloud reads this report
+jacoco {
+    toolVersion = '0.8.11'
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport     // run coverage report after tests
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true          // SonarCloud needs XML format
+    }
+}
+
+// SonarCloud configuration
+sonar {
+    properties {
+        property 'sonar.projectKey', 'your-github-username_dway-backend'
+        property 'sonar.organization', 'Nicat667'
+        property 'sonar.host.url', 'https://sonarcloud.io'
+        property 'sonar.coverage.jacoco.xmlReportPaths',
+                'build/reports/jacoco/test/jacocoTestReport.xml'
+    }
+}

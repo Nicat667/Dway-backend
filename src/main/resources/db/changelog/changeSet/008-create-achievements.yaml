@@ -1,0 +1,59 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-create-achievements
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: achievements
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: key
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+              - column:
+                  name: title
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: description
+                  type: text
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: icon
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: threshold
+                  type: int
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: reward_points
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false

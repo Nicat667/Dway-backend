@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-create-user-achievements
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: user_achievements
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_achievements_user_id
+                    references: users(id)
+
+              - column:
+                  name: achievement_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_achievements_achievement_id
+                    references: achievements(id)
+
+              - column:
+                  name: unlocked_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: user_achievements
+            constraintName: uq_user_achievements_user_id_achievement_id
+            columnNames: user_id, achievement_id
+
+        - createIndex:
+            tableName: user_achievements
+            indexName: idx_user_achievements_user_id
+            columns:
+              - column:
+                  name: user_id

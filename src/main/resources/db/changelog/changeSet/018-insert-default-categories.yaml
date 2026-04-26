@@ -1,0 +1,224 @@
+databaseChangeLog:
+  - changeSet:
+      id: 018-seed-default-categories
+      author: dway
+      changes:
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Work
+              - column:
+                  name: icon
+                  value: "💼"
+              - column:
+                  name: color
+                  value: "#4A90E2"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Personal
+              - column:
+                  name: icon
+                  value: "👤"
+              - column:
+                  name: color
+                  value: "#7ED321"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Health
+              - column:
+                  name: icon
+                  value: "🏃"
+              - column:
+                  name: color
+                  value: "#FF5733"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Finance
+              - column:
+                  name: icon
+                  value: "💰"
+              - column:
+                  name: color
+                  value: "#F5A623"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Education
+              - column:
+                  name: icon
+                  value: "📚"
+              - column:
+                  name: color
+                  value: "#9B59B6"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Shopping
+              - column:
+                  name: icon
+                  value: "🛒"
+              - column:
+                  name: color
+                  value: "#E91E63"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Family
+              - column:
+                  name: icon
+                  value: "👨‍👩‍👧"
+              - column:
+                  name: color
+                  value: "#00BCD4"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Social
+              - column:
+                  name: icon
+                  value: "🤝"
+              - column:
+                  name: color
+                  value: "#FF9800"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Travel
+              - column:
+                  name: icon
+                  value: "✈️"
+              - column:
+                  name: color
+                  value: "#009688"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()
+
+        - insert:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  valueComputed: gen_random_uuid()
+              - column:
+                  name: name
+                  value: Hobbies
+              - column:
+                  name: icon
+                  value: "🎨"
+              - column:
+                  name: color
+                  value: "#607D8B"
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: created_at
+                  valueComputed: now()

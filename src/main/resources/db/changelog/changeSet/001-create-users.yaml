@@ -1,0 +1,113 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-users
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: email
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+              - column:
+                  name: password
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: is_verified
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: role
+                  type: varchar(20)
+                  defaultValue: USER
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: plan
+                  type: varchar(20)
+                  defaultValue: FREE
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: country
+                  type: varchar(100)
+
+              - column:
+                  name: points
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: streak
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: avatar_url
+                  type: varchar(500)
+
+              - column:
+                  name: push_token
+                  type: varchar(500)
+
+              - column:
+                  name: is_banned
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: banned_at
+                  type: timestamp
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: users
+            indexName: idx_users_is_banned
+            columns:
+              - column:
+                  name: is_banned
+            where: is_banned = true

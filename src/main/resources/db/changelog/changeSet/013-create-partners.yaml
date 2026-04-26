@@ -1,0 +1,79 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013-create-partners
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: partners
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: icon_url
+                  type: varchar(500)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: description
+                  type: text
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: discount_text
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: promo_code
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: partner_url
+                  type: varchar(500)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: partners
+            indexName: idx_partners_is_active
+            columns:
+              - column:
+                  name: is_active
+            where: is_active = true

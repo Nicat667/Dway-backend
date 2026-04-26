@@ -1,0 +1,56 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-create-post-likes
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: post_likes
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_post_likes_user_id
+                    references: users(id)
+
+              - column:
+                  name: post_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_post_likes_post_id
+                    references: posts(id)
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: post_likes
+            constraintName: uq_post_likes_user_id_post_id
+            columnNames: user_id, post_id
+
+        - createIndex:
+            tableName: post_likes
+            indexName: idx_post_likes_post_id
+            columns:
+              - column:
+                  name: post_id
+
+        - createIndex:
+            tableName: post_likes
+            indexName: idx_post_likes_user_id
+            columns:
+              - column:
+                  name: user_id

@@ -1,0 +1,54 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015-create-ai-configurations
+      author: dway
+      changes:
+        - createTable:
+            tableName: ai_configurations
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: system_prompt
+                  type: text
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: model
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: max_tokens
+                  type: int
+                  defaultValueNumeric: 1000
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: temperature
+                  type: float8
+                  defaultValueNumeric: 0.7
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false

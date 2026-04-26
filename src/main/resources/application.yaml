@@ -7,10 +7,6 @@ spring:
       ddl-auto: validate
     show-sql: false
     open-in-view: false
-    properties:
-      hibernate:
-        format_sql: false
-        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   liquibase:
     change-log: classpath:/db/changelog/db.changelog-master.yaml
@@ -37,14 +33,14 @@ app:
     verification-expiry-minutes: 15
 
 aws:
-  access-key: ${AWS_ACCESS_KEY}
-  secret-key: ${AWS_SECRET_KEY}
+  access-key: ${AWS_ACCESS_KEY:dummy}
+  secret-key: ${AWS_SECRET_KEY:dummy}
   s3:
-    bucket: ${AWS_S3_BUCKET}
-    region: ${AWS_S3_REGION}
+    bucket: ${AWS_S3_BUCKET:dway-assets}
+    region: ${AWS_S3_REGION:us-east-1}
 
 ai:
-  api-key: ${AI_API_KEY}
+  api-key: ${AI_API_KEY:dummy}
   base-url: https://api.anthropic.com/v1
 
 springdoc:

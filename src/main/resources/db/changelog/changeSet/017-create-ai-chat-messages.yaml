@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: 017-create-ai-chat-messages
+      author: dway
+      changes:
+        - createTable:
+            tableName: ai_chat_messages
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: session_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_ai_chat_messages_session_id
+                    references: ai_chat_sessions(id)
+
+              - column:
+                  name: role
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: content
+                  type: text
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: ai_chat_messages
+            indexName: idx_ai_chat_messages_session_id
+            columns:
+              - column:
+                  name: session_id

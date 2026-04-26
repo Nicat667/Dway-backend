@@ -1,0 +1,64 @@
+databaseChangeLog:
+  - changeSet:
+      id: 014-create-motivations
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: daily_motivations
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: quote
+                  type: text
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: author
+                  type: varchar(100)
+
+              - column:
+                  name: language
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: scheduled_date
+                  type: date
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: daily_motivations
+            constraintName: uq_daily_motivations_language_scheduled_date
+            columnNames: language, scheduled_date
+
+        - createIndex:
+            tableName: daily_motivations
+            indexName: idx_daily_motivations_scheduled_date_language
+            columns:
+              - column:
+                  name: scheduled_date
+              - column:
+                  name: language

@@ -1,0 +1,67 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-create-user-challenges
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: user_challenges
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_challenges_user_id
+                    references: users(id)
+
+              - column:
+                  name: challenge_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_challenges_challenge_id
+                    references: challenges(id)
+
+              - column:
+                  name: progress
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: completed_at
+                  type: timestamp
+
+              - column:
+                  name: joined_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: user_challenges
+            constraintName: uq_user_challenges_user_id_challenge_id
+            columnNames: user_id, challenge_id
+
+        - createIndex:
+            tableName: user_challenges
+            indexName: idx_user_challenges_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: user_challenges
+            indexName: idx_user_challenges_challenge_id
+            columns:
+              - column:
+                  name: challenge_id

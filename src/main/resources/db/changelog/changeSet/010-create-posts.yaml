@@ -1,0 +1,87 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-create-posts
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: posts
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_posts_user_id
+                    references: users(id)
+
+              - column:
+                  name: content
+                  type: text
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: PUBLISHED
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: likes_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: comments_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: is_deleted
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: posts
+            indexName: idx_posts_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: posts
+            indexName: idx_posts_status_is_deleted
+            columns:
+              - column:
+                  name: status
+              - column:
+                  name: is_deleted
+            where: is_deleted = false

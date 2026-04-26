@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-email-verifications
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: email_verifications
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_email_verifications_user_id
+                    references: users(id)
+
+              - column:
+                  name: code
+                  type: varchar(6)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: used
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: email_verifications
+            indexName: idx_email_verifications_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: email_verifications
+            indexName: idx_email_verifications_used
+            columns:
+              - column:
+                  name: used
+            where: used = false

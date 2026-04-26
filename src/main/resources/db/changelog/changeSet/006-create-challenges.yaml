@@ -1,0 +1,87 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-challenges
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: challenges
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: icon
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: title
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: description
+                  type: text
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: difficulty
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: duration_days
+                  type: int
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: reward_points
+                  type: int
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: participant_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: challenges
+            indexName: idx_challenges_is_active
+            columns:
+              - column:
+                  name: is_active
+            where: is_active = true
+

@@ -1,0 +1,123 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-tasks
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: tasks
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_tasks_user_id
+                    references: users(id)
+
+              - column:
+                  name: category_id
+                  type: uuid
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_tasks_category_id
+                    references: categories(id)
+
+              - column:
+                  name: title
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: priority
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: period
+                  type: varchar(10)
+
+              - column:
+                  name: due_date
+                  type: timestamp
+
+              - column:
+                  name: alarm_time
+                  type: timestamp
+
+              - column:
+                  name: notes
+                  type: text
+
+              - column:
+                  name: is_completed
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: completed_at
+                  type: timestamp
+
+              - column:
+                  name: is_deleted
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_user_id_is_deleted
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: is_deleted
+            where: is_deleted = false
+
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_user_id_is_completed
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: is_completed
+
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_due_date
+            columns:
+              - column:
+                  name: due_date

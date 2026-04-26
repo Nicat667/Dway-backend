@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: 016-create-ai-chat-sessions
+      author: dway
+      changes:
+        - createTable:
+            tableName: ai_chat_sessions
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_ai_chat_sessions_user_id
+                    references: users(id)
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: ai_chat_sessions
+            indexName: idx_ai_chat_sessions_user_id
+            columns:
+              - column:
+                  name: user_id

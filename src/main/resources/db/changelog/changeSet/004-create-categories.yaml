@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-categories
+      author: Nijat
+      changes:
+        - createTable:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_categories_user_id
+                    references: users(id)
+
+              - column:
+                  name: name
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: icon
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: color
+                  type: varchar(7)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: is_default
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: categories
+            indexName: idx_categories_user_id
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: categories
+            indexName: idx_categories_is_default
+            columns:
+              - column:
+                  name: is_default
+            where: is_default = true

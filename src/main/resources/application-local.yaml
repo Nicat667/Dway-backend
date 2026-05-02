@@ -21,6 +21,8 @@ spring:
 app:
   jwt:
     secret: dW@y$3cr3tK3y#2024!xK9mN2pR5vT7wY9uZeQ3xLzA4bF6hJ1cD0gS8kM2nP5rV7tW9yB
+    access-token-expiry: 900000
+    refresh-token-expiry: 2592000000
 
 logging:
   level:

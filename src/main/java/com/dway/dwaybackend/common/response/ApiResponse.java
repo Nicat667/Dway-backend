@@ -6,7 +6,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
+//@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
     private final boolean success;

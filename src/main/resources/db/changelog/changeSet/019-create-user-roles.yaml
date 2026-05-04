@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 019-create-user-roles
+      author: dway
+      changes:
+
+        # Create the new user_roles table
+        - createTable:
+            tableName: user_roles
+            columns:
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_roles_user_id
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: role
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+
+        # Composite primary key — prevents duplicate roles per user
+        - addPrimaryKey:
+            tableName: user_roles
+            columnNames: user_id, role
+            constraintName: pk_user_roles
+
+        # Migrate existing data
+        # Every user has a role column — copy it to the new table
+        - sql:
+            sql: >
+              INSERT INTO user_roles (user_id, role)
+              SELECT id, role FROM users
+
+        # Remove old role column — data is now in user_roles
+        - dropColumn:
+            tableName: users
+            columnName: role

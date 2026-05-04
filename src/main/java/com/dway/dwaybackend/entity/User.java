@@ -8,6 +8,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -37,10 +39,15 @@ public class User {
     @Builder.Default
     private boolean isVerified = false;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
+    @Column(name = "role")
     @Builder.Default
-    private Role role = Role.USER;
+    private Set<Role> roles = new HashSet<>(Set.of(Role.USER));
 
     @Enumerated(EnumType.STRING)
     @Column(name = "plan", nullable = false)

@@ -45,7 +45,7 @@ public class SwaggerConfig {
             String basePath = (classMapping != null && classMapping.value().length > 0)
                     ? classMapping.value()[0]
                     : "";
-            
+
             boolean isPublic = basePath.startsWith("/api/v1/auth");
 
             if (!isPublic) {

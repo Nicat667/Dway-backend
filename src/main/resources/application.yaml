@@ -43,6 +43,15 @@ ai:
   api-key: ${AI_API_KEY:dummy}
   base-url: https://api.anthropic.com/v1
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health  # only expose health endpoint publicly
+  endpoint:
+    health:
+      show-details: always  # show DB and Redis status in health response
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

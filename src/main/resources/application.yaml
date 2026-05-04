@@ -21,14 +21,36 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Email sending configuration
+  # Credentials come from environment variables
+  # Properties enable TLS authentication required by Gmail and most SMTP servers
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
 server:
   port: 8080
 
 app:
   jwt:
     secret: ${JWT_SECRET}
-    access-token-expiry: 900
-    refresh-token-expiry: 2592000
+    access-token-expiry: 900        # seconds — JwtUtil multiplies by 1000
+    refresh-token-expiry: 2592000   # seconds — 30 days
   email:
     verification-expiry-minutes: 15
 
@@ -36,21 +58,24 @@ aws:
   access-key: ${AWS_ACCESS_KEY:dummy}
   secret-key: ${AWS_SECRET_KEY:dummy}
   s3:
-    bucket: ${AWS_S3_BUCKET:dway-assets}
+    bucket: ${AWS_S3_BUCKET:dway-backend}
     region: ${AWS_S3_REGION:us-east-1}
 
 ai:
   api-key: ${AI_API_KEY:dummy}
   base-url: https://api.anthropic.com/v1
 
+# Actuator — health check for Railway
+# Only health is exposed publicly
+# show-details: always — Railway sees DB and Redis status
 management:
   endpoints:
     web:
       exposure:
-        include: health  # only expose health endpoint publicly
+        include: health
   endpoint:
     health:
-      show-details: always  # show DB and Redis status in health response
+      show-details: always
 
 springdoc:
   swagger-ui:

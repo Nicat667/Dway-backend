@@ -1,12 +1,11 @@
 package com.dway.dwaybackend.service.mobile;
 
-import com.dway.dwaybackend.common.exception.auth.EmailAlreadyExistsException;
-import com.dway.dwaybackend.common.exception.auth.UserNotFoundException;
+import com.dway.dwaybackend.common.exception.auth.*;
 import com.dway.dwaybackend.common.exception.verification.CodeRecentlySentException;
 import com.dway.dwaybackend.common.exception.verification.InvalidVerificationCodeException;
-import com.dway.dwaybackend.dto.request.auth.RegisterRequest;
-import com.dway.dwaybackend.dto.request.auth.VerifyEmailRequest;
+import com.dway.dwaybackend.dto.request.auth.*;
 import com.dway.dwaybackend.dto.response.auth.AuthResponse;
+import com.dway.dwaybackend.dto.response.auth.RefreshTokenResponse;
 import com.dway.dwaybackend.dto.response.auth.UserResponse;
 import com.dway.dwaybackend.entity.EmailVerification;
 import com.dway.dwaybackend.entity.RefreshToken;
@@ -22,6 +21,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -51,27 +51,21 @@ public class AuthService {
             throw new EmailAlreadyExistsException();
         }
 
-        String hashedPassword = passwordEncoder.encode(request.getPassword());
-
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail().toLowerCase())
-                .password(hashedPassword)
+                .password(passwordEncoder.encode(request.getPassword()))
                 .build();
 
         userRepository.save(user);
-
-        sendVerificationCode(user.getId(), request.getEmail(), request.getName());
+        sendVerificationCode(user.getId(), user.getEmail(), user.getName());
     }
 
     @Transactional
     public AuthResponse verifyEmail(VerifyEmailRequest request) {
+        User user = userRepository.findByEmail(request.getEmail().toLowerCase()).orElseThrow(UserNotFoundException::new);
 
-        User user = userRepository.findByEmail(request.getEmail().toLowerCase())
-                .orElseThrow(UserNotFoundException::new);
-
-        EmailVerification verification = emailVerificationRepository
-                .findByUserIdAndCodeAndUsedFalse(user.getId(), request.getCode())
+        EmailVerification verification = emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(user.getId(), request.getCode())
                 .orElseThrow(InvalidVerificationCodeException::new);
 
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -88,37 +82,99 @@ public class AuthService {
 
         log.info("User {} verified email successfully", user.getId());
 
-        return buildAuthResponse(user);
+        return buildAuthResponse(user, null);
     }
 
-    // ── Shared helpers
+    @Transactional
+    public void resendCode(ResendCodeRequest request) {
+        User user = userRepository.findByEmail(request.getEmail().toLowerCase()).orElseThrow(UserNotFoundException::new);
 
+        if (user.isVerified()) {
+            throw new EmailAlreadyVerifiedException();
+        }
+
+        sendVerificationCode(user.getId(), user.getEmail(), user.getName());
+    }
+
+    @Transactional
     public void sendVerificationCode(UUID userId, String email, String name) {
-        emailVerificationRepository
-                .findTopByUserIdOrderByCreatedAtDesc(userId)
-                .ifPresent(existing -> {
-                    boolean sentRecently = existing.getCreatedAt()
-                            .isAfter(LocalDateTime.now().minusMinutes(2));
+        emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(userId).ifPresent(existing -> {
+                    boolean sentRecently = existing.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(2));
                     if (sentRecently) {
                         throw new CodeRecentlySentException();
                     }
                 });
 
+        emailVerificationRepository.deleteAllByUserId(userId);
+
         String code = generateCode();
 
-        EmailVerification verification = EmailVerification.builder()
+        emailVerificationRepository.save(EmailVerification.builder()
                 .userId(userId)
                 .code(code)
                 .expiresAt(LocalDateTime.now().plusMinutes(verificationExpiryMinutes))
-                .build();
+                .build());
 
-        emailVerificationRepository.save(verification);
         emailService.sendVerificationEmail(email, name, code);
     }
 
-    public AuthResponse buildAuthResponse(User user) {
+    @Transactional
+    public AuthResponse login(LoginRequest request) {
+
+        User user = userRepository.findByEmail(request.getEmail().toLowerCase()).orElseThrow(InvalidCredentialsException::new);
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new InvalidCredentialsException();
+        }
+
+        if (!user.isVerified()) {
+            throw new EmailNotVerifiedException();
+        }
+
+        if (user.isBanned()) {
+            throw new UserBannedException();
+        }
+
+        log.info("User {} logged in successfully", user.getId());
+        return buildAuthResponse(user, request.getDeviceInfo());
+    }
+
+    @Transactional
+    public RefreshTokenResponse refresh(RefreshTokenRequest request) {
+
+        String tokenHash = DigestUtils.md5DigestAsHex(request.getRefreshToken().getBytes());
+
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash).orElseThrow(InvalidRefreshTokenException::new);
+
+        if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.delete(refreshToken);
+            throw new InvalidRefreshTokenException();
+        }
+
+        if (refreshToken.isRevoked()) {
+            throw new InvalidRefreshTokenException();
+        }
+
+        User user = userRepository.findById(refreshToken.getUserId()).orElseThrow(UserNotFoundException::new);
+
+        if (user.isBanned()) {
+            throw new UserBannedException();
+        }
+
+        String newAccessToken = jwtUtil.generateAccessToken(user.getId(), user.getRoles());
+        return RefreshTokenResponse.builder().accessToken(newAccessToken).build();
+    }
+
+    @Transactional
+    public void logout(LogoutRequest request) {
+        String tokenHash = DigestUtils.md5DigestAsHex(request.getRefreshToken().getBytes());
+
+        refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(refreshTokenRepository::delete);
+    }
+
+    private AuthResponse buildAuthResponse(User user, String deviceInfo) {
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getRoles());
-        String rawRefreshToken = generateAndSaveRefreshToken(user.getId());
+        String rawRefreshToken = generateAndSaveRefreshToken(user.getId(), deviceInfo);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -127,21 +183,17 @@ public class AuthService {
                 .build();
     }
 
-    private String generateAndSaveRefreshToken(UUID userId) {
-
+    private String generateAndSaveRefreshToken(UUID userId, String deviceInfo) {
         String rawToken = UUID.randomUUID().toString();
+        String tokenHash = DigestUtils.md5DigestAsHex(rawToken.getBytes());
 
-        String tokenHash = org.springframework.util.DigestUtils
-                .md5DigestAsHex(rawToken.getBytes());
-
-        RefreshToken refreshToken = RefreshToken.builder()
+        refreshTokenRepository.save(RefreshToken.builder()
                 .userId(userId)
                 .tokenHash(tokenHash)
-                .expiresAt(LocalDateTime.now()
-                        .plusSeconds(refreshTokenExpirySeconds))
-                .build();
+                .deviceInfo(deviceInfo)
+                .expiresAt(LocalDateTime.now().plusSeconds(refreshTokenExpirySeconds))
+                .build());
 
-        refreshTokenRepository.save(refreshToken);
         return rawToken;
     }
 
@@ -161,7 +213,6 @@ public class AuthService {
 
     private String generateCode() {
         SecureRandom random = new SecureRandom();
-        int code = 100000 + random.nextInt(900000);
-        return String.valueOf(code);
+        return String.valueOf(100000 + random.nextInt(900000));
     }
 }

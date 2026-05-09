@@ -1,5 +1,18 @@
 package com.dway.dwaybackend.common.exception;
 
+import com.dway.dwaybackend.common.exception.achievement.AchievementNotFoundException;
+import com.dway.dwaybackend.common.exception.ai.AiConfigNotFoundException;
+import com.dway.dwaybackend.common.exception.ai.AiServiceException;
+import com.dway.dwaybackend.common.exception.ai.AiSessionNotFoundException;
+import com.dway.dwaybackend.common.exception.auth.*;
+import com.dway.dwaybackend.common.exception.category.*;
+import com.dway.dwaybackend.common.exception.challenge.*;
+import com.dway.dwaybackend.common.exception.comment.*;
+import com.dway.dwaybackend.common.exception.motivation.*;
+import com.dway.dwaybackend.common.exception.partner.*;
+import com.dway.dwaybackend.common.exception.post.*;
+import com.dway.dwaybackend.common.exception.task.*;
+import com.dway.dwaybackend.common.exception.verification.*;
 import com.dway.dwaybackend.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -8,25 +21,13 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.dway.dwaybackend.common.exception.auth.*;
-import com.dway.dwaybackend.common.exception.verification.*;
-import com.dway.dwaybackend.common.exception.task.*;
-import com.dway.dwaybackend.common.exception.category.*;
-import com.dway.dwaybackend.common.exception.challenge.*;
-import com.dway.dwaybackend.common.exception.post.*;
-import com.dway.dwaybackend.common.exception.comment.*;
-import com.dway.dwaybackend.common.exception.partner.*;
-import com.dway.dwaybackend.common.exception.motivation.*;
-import com.dway.dwaybackend.common.exception.achievement.*;
-import com.dway.dwaybackend.common.exception.ai.*;
-
 import java.util.List;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // ── Auth
+    // ── Auth ─────────────────────────────────────────────────────
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -39,6 +40,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
             EmailAlreadyExistsException ex, HttpServletRequest request) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.status(ex.getErrorCode().getStatus())
+                .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(EmailAlreadyVerifiedException.class)
+    public ResponseEntity<ApiResponse<Void>> handle(
+            EmailAlreadyVerifiedException ex, HttpServletRequest request) {
         log.warn(ex.getMessage());
         return ResponseEntity.status(ex.getErrorCode().getStatus())
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
@@ -84,7 +93,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Verification
+    // ── Verification ─────────────────────────────────────────────
 
     @ExceptionHandler(InvalidVerificationCodeException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -102,7 +111,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Task
+    // ── Task ─────────────────────────────────────────────────────
 
     @ExceptionHandler(TaskNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -112,7 +121,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Category
+    // ── Category ─────────────────────────────────────────────────
 
     @ExceptionHandler(CategoryNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -130,7 +139,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Challenge
+    // ── Challenge ────────────────────────────────────────────────
 
     @ExceptionHandler(ChallengeNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -156,7 +165,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Post
+    // ── Post ─────────────────────────────────────────────────────
 
     @ExceptionHandler(PostNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -182,7 +191,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Comment
+    // ── Comment ──────────────────────────────────────────────────
 
     @ExceptionHandler(CommentNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -192,7 +201,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Partner
+    // ── Partner ──────────────────────────────────────────────────
 
     @ExceptionHandler(PartnerNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -210,7 +219,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Motivation
+    // ── Motivation ───────────────────────────────────────────────
 
     @ExceptionHandler(MotivationNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -228,7 +237,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Achievement
+    // ── Achievement ──────────────────────────────────────────────
 
     @ExceptionHandler(AchievementNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -238,7 +247,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── AI
+    // ── AI ───────────────────────────────────────────────────────
 
     @ExceptionHandler(AiConfigNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -264,7 +273,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Access Denied
+    // ── Access denied ────────────────────────────────────────────
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handle(
@@ -274,12 +283,11 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), request.getRequestURI()));
     }
 
-    // ── Validation
+    // ── Validation ───────────────────────────────────────────────
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
-
         List<ApiResponse.FieldError> fieldErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -288,7 +296,6 @@ public class GlobalExceptionHandler {
                         .message(e.getDefaultMessage())
                         .build())
                 .toList();
-
         return ResponseEntity.badRequest()
                 .body(ApiResponse.validationError(
                         "Validation failed",
@@ -296,7 +303,7 @@ public class GlobalExceptionHandler {
                         fieldErrors));
     }
 
-    // ── Fallback
+    // ── Fallback ─────────────────────────────────────────────────
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(

@@ -53,6 +53,17 @@ app:
     refresh-token-expiry: 2592000   # seconds — 30 days
   email:
     verification-expiry-minutes: 15
+  rate-limit:
+    enabled: true
+    login:
+      capacity: 5
+      window-seconds: 900
+    auth:
+      capacity: 10
+      window-seconds: 60
+    ai:
+      capacity: 20
+      window-seconds: 3600
 
 aws:
   access-key: ${AWS_ACCESS_KEY:dummy}

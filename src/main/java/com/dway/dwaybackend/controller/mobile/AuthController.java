@@ -2,6 +2,8 @@ package com.dway.dwaybackend.controller.mobile;
 
 import com.dway.dwaybackend.common.response.ApiResponse;
 import com.dway.dwaybackend.dto.request.auth.RegisterRequest;
+import com.dway.dwaybackend.dto.request.auth.VerifyEmailRequest;
+import com.dway.dwaybackend.dto.response.auth.AuthResponse;
 import com.dway.dwaybackend.service.mobile.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,5 +34,14 @@ public class AuthController {
                 .body(ApiResponse.success(
                         "Registration successful. Please check your email for a verification code.",
                         null));
+    }
+
+    @Operation(summary = "Verify email with OTP code")
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyEmail(
+            @RequestBody @Valid VerifyEmailRequest request) {
+        AuthResponse response = authService.verifyEmail(request);
+        return ResponseEntity.ok(
+                ApiResponse.success("Email verified successfully", response));
     }
 }

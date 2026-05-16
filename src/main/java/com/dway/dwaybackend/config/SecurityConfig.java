@@ -24,7 +24,7 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
-    private RateLimitFilter rateLimitFilter;
+    private final RateLimitFilter rateLimitFilter; // ← final, always injected
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -44,12 +44,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(rateLimitFilter, JwtFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
-        // Only add RateLimitFilter if it exists (enabled in yaml)
-        if (rateLimitFilter != null) {
-            http.addFilterBefore(rateLimitFilter, JwtFilter.class);
-        }
 
         return http.build();
     }

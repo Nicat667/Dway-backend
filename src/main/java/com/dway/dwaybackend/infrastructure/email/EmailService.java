@@ -25,17 +25,30 @@ public class EmailService {
             message.setFrom(fromEmail);
             message.setTo(toEmail);
             message.setSubject("Verify your Dway account");
-            message.setText(buildVerificationEmailText(name, code));
+            message.setText(buildVerificationText(name, code));
             mailSender.send(message);
             log.info("Verification email sent to {}", toEmail);
         } catch (Exception e) {
-            // Log but do not rethrow — email failure should not fail the request
-            // User can request resend
             log.error("Failed to send verification email to {}: {}", toEmail, e.getMessage());
         }
     }
 
-    private String buildVerificationEmailText(String name, String code) {
+    @Async("emailExecutor")
+    public void sendPasswordResetEmail(String toEmail, String name, String code) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject("Reset your Dway password");
+            message.setText(buildPasswordResetText(name, code));
+            mailSender.send(message);
+            log.info("Password reset email sent to {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildVerificationText(String name, String code) {
         return String.format("""
                 Hi %s,
                 
@@ -46,6 +59,23 @@ public class EmailService {
                 This code expires in 15 minutes.
                 
                 If you did not create a Dway account, ignore this email.
+                
+                The Dway Team
+                """, name, code);
+    }
+
+    private String buildPasswordResetText(String name, String code) {
+        return String.format("""
+                Hi %s,
+                
+                You requested to reset your Dway password.
+                
+                Your reset code is: %s
+                
+                This code expires in 15 minutes.
+                
+                If you did not request a password reset, ignore this email.
+                Your password will not be changed.
                 
                 The Dway Team
                 """, name, code);

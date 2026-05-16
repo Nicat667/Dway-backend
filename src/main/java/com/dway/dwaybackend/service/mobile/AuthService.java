@@ -8,10 +8,12 @@ import com.dway.dwaybackend.dto.response.auth.AuthResponse;
 import com.dway.dwaybackend.dto.response.auth.RefreshTokenResponse;
 import com.dway.dwaybackend.dto.response.auth.UserResponse;
 import com.dway.dwaybackend.entity.EmailVerification;
+import com.dway.dwaybackend.entity.PasswordResetToken;
 import com.dway.dwaybackend.entity.RefreshToken;
 import com.dway.dwaybackend.entity.User;
 import com.dway.dwaybackend.infrastructure.email.EmailService;
 import com.dway.dwaybackend.repository.EmailVerificationRepository;
+import com.dway.dwaybackend.repository.PasswordResetTokenRepository;
 import com.dway.dwaybackend.repository.RefreshTokenRepository;
 import com.dway.dwaybackend.repository.UserRepository;
 import com.dway.dwaybackend.security.JwtUtil;
@@ -38,6 +40,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final JwtUtil jwtUtil;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Value("${app.email.verification-expiry-minutes:15}")
     private int verificationExpiryMinutes;
@@ -170,6 +173,59 @@ public class AuthService {
         String tokenHash = DigestUtils.md5DigestAsHex(request.getRefreshToken().getBytes());
 
         refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(refreshTokenRepository::delete);
+    }
+
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        userRepository.findByEmail(request.getEmail().toLowerCase())
+                .ifPresent(user -> {
+                    passwordResetTokenRepository
+                            .findTopByUserIdOrderByCreatedAtDesc(user.getId()).ifPresent(existing -> {
+                                if (existing.getCreatedAt()
+                                        .isAfter(LocalDateTime.now().minusMinutes(2))) {
+                                    throw new CodeRecentlySentException();
+                                }
+                            });
+
+                    passwordResetTokenRepository.deleteAllByUserId(user.getId());
+
+                    String code = generateCode();
+
+                    passwordResetTokenRepository.save(PasswordResetToken.builder()
+                            .userId(user.getId())
+                            .code(code)
+                            .expiresAt(LocalDateTime.now().plusMinutes(verificationExpiryMinutes))
+                            .used(false)
+                            .build());
+
+                    emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), code);
+                });
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail().toLowerCase()).orElseThrow(UserNotFoundException::new);
+
+        PasswordResetToken resetToken = passwordResetTokenRepository
+                .findByUserIdAndCodeAndUsedFalse(user.getId(), request.getCode())
+                .orElseThrow(InvalidVerificationCodeException::new);
+
+        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new InvalidVerificationCodeException();
+        }
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        passwordResetTokenRepository.deleteAllByUserId(user.getId());
+
+        // Log out all devices — security measure after password change
+        refreshTokenRepository.deleteAllByUserId(user.getId());
+
+        log.info("User {} reset password successfully", user.getId());
     }
 
     private AuthResponse buildAuthResponse(User user, String deviceInfo) {

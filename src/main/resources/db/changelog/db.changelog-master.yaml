@@ -37,3 +37,5 @@ databaseChangeLog:
       file: db/changelog/changeSet/018-insert-default-categories.yaml
   - include:
       file: db/changelog/changeSet/019-create-user-roles.yaml
+  - include:
+      file: db/changelog/changeSet/020-create-password-reset-tokens.yaml

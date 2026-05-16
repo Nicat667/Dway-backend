@@ -34,8 +34,7 @@ public class AuthController {
     @Operation(summary = "Verify email with OTP code")
     @PostMapping("/verify-email")
     public ResponseEntity<ApiResponse<AuthResponse>> verifyEmail(@RequestBody @Valid VerifyEmailRequest request) {
-        AuthResponse response = authService.verifyEmail(request);
-        return ResponseEntity.ok(ApiResponse.success("Email verified successfully", response));
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully", authService.verifyEmail(request)));
     }
 
     @Operation(summary = "Resend email verification code")
@@ -48,15 +47,13 @@ public class AuthController {
     @Operation(summary = "Login with email and password")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody @Valid LoginRequest request) {
-        AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+        return ResponseEntity.ok(ApiResponse.success("Login successful", authService.login(request)));
     }
 
     @Operation(summary = "Refresh access token")
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<RefreshTokenResponse>> refresh(@RequestBody @Valid RefreshTokenRequest request) {
-        RefreshTokenResponse response = authService.refresh(request);
-        return ResponseEntity.ok(ApiResponse.success(null, response));
+        return ResponseEntity.ok(ApiResponse.success(null, authService.refresh(request)));
     }
 
     @Operation(summary = "Logout — invalidate refresh token")
@@ -64,5 +61,24 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(@RequestBody @Valid LogoutRequest request) {
         authService.logout(request);
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully", null));
+    }
+
+    @Operation(summary = "Send password reset code to email")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @RequestBody @Valid ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "If an account exists with this email, a reset code has been sent.",
+                null));
+    }
+
+    @Operation(summary = "Reset password using code received via email")
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @RequestBody @Valid ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Password reset successfully. Please log in.", null));
     }
 }

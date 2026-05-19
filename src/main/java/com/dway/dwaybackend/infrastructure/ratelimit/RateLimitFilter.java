@@ -56,8 +56,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean isRateLimited(String path) {
-        return path.startsWith("/api/v1/auth/")
-                || path.startsWith("/api/v1/mobile/ai/");
+        return path.startsWith("/api/v1/auth/") || path.startsWith("/api/v1/mobile/ai/");
     }
 
     private String extractIp(HttpServletRequest request) {

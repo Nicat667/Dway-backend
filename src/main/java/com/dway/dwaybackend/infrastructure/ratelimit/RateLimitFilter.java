@@ -21,9 +21,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitService rateLimitService;
 
-    // Reads app.rate-limit.enabled from yaml
-    // false in local yaml → filter skips entirely
-    // true in production yaml → filter runs
     @Value("${app.rate-limit.enabled:true}")
     private boolean enabled;
 

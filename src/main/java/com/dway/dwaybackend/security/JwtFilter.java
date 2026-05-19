@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-@Component
+
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
 

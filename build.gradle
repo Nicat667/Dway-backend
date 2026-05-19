@@ -28,12 +28,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-//    implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
     // Database
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.liquibase:liquibase-core'
@@ -71,18 +70,19 @@ dependencies {
 
 // JaCoCo — measures test coverage, SonarCloud reads this report
 jacoco {
-    toolVersion = '0.8.11'
+    toolVersion = '0.8.13'
 }
 
 test {
     useJUnitPlatform()
-    finalizedBy jacocoTestReport     // run coverage report after tests
+    jvmArgs '-Dnet.bytebuddy.experimental=true'
+    finalizedBy jacocoTestReport
 }
 
 jacocoTestReport {
     dependsOn test
     reports {
-        xml.required = true          // SonarCloud needs XML format
+        xml.required = true
     }
 }
 

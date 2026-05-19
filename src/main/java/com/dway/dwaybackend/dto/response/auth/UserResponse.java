@@ -4,11 +4,13 @@ import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Set;
 import java.util.UUID;
 
 @Getter
+@Setter
 @Builder
 public class UserResponse {
     private UUID id;

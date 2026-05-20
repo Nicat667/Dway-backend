@@ -306,6 +306,13 @@ public class GlobalExceptionHandler {
 
     // ── Fallback ─────────────────────────────────────────────────
 
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handle(
+            ResponseStatusException ex, HttpServletRequest request) {
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(ApiResponse.error(ex.getReason(), request.getRequestURI()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(
             Exception ex, HttpServletRequest request) {
@@ -317,10 +324,5 @@ public class GlobalExceptionHandler {
     }
 
 
-    @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<ApiResponse<Void>> handle(
-            ResponseStatusException ex, HttpServletRequest request) {
-        return ResponseEntity.status(ex.getStatusCode())
-                .body(ApiResponse.error(ex.getReason(), request.getRequestURI()));
-    }
+
 }

@@ -7,7 +7,6 @@ import com.dway.dwaybackend.dto.response.user.AdminUserResponse;
 import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
 import com.dway.dwaybackend.infrastructure.ratelimit.RateLimitService;
-import com.dway.dwaybackend.security.JwtAuthEntryPoint;
 import com.dway.dwaybackend.security.JwtUtil;
 import com.dway.dwaybackend.service.admin.AdminUserService;
 import org.junit.jupiter.api.*;
@@ -19,6 +18,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -37,7 +37,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AdminUserController.class)
-@Import({SecurityConfig.class, JwtAuthEntryPoint.class})
+@Import(SecurityConfig.class)
 @DisplayName("AdminUserController")
 class AdminUserControllerTest {
 
@@ -110,9 +110,10 @@ class AdminUserControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "USER")
         @DisplayName("403 when called by a regular user")
         void getAllUsers_forbiddenForUser() throws Exception {
-            mockMvc.perform(get(BASE).with(asUser()))
+            mockMvc.perform(get(BASE))
                     .andExpect(status().isForbidden());
 
             verify(adminUserService, never()).getAllUsers(any());
@@ -156,9 +157,10 @@ class AdminUserControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "USER")
         @DisplayName("403 when called by a regular user")
         void getUserById_forbiddenForUser() throws Exception {
-            mockMvc.perform(get(BASE + "/" + USER_ID).with(asUser()))
+            mockMvc.perform(get(BASE + "/" + USER_ID))
                     .andExpect(status().isForbidden());
 
             verify(adminUserService, never()).getUserById(any());
@@ -232,9 +234,10 @@ class AdminUserControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "USER")
         @DisplayName("403 when called by a regular user")
         void banUser_forbiddenForUser() throws Exception {
-            mockMvc.perform(post(BASE + "/" + USER_ID + "/ban").with(asUser()).with(csrf()))
+            mockMvc.perform(post(BASE + "/" + USER_ID + "/ban").with(csrf()))
                     .andExpect(status().isForbidden());
 
             verify(adminUserService, never()).banUser(any(), any());
@@ -277,9 +280,10 @@ class AdminUserControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "USER")
         @DisplayName("403 when called by a regular user")
         void unbanUser_forbiddenForUser() throws Exception {
-            mockMvc.perform(post(BASE + "/" + USER_ID + "/unban").with(asUser()).with(csrf()))
+            mockMvc.perform(post(BASE + "/" + USER_ID + "/unban").with(csrf()))
                     .andExpect(status().isForbidden());
 
             verify(adminUserService, never()).unbanUser(any(), any());
@@ -369,10 +373,11 @@ class AdminUserControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "USER")
         @DisplayName("403 when called by a regular user")
         void updateRoles_forbiddenForUser() throws Exception {
             mockMvc.perform(put(BASE + "/" + USER_ID + "/roles")
-                            .with(asUser()).with(csrf())
+                            .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     { "roles": ["ADMIN"] }
@@ -424,9 +429,10 @@ class AdminUserControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "USER")
         @DisplayName("403 when called by a regular user")
         void deleteUser_forbiddenForUser() throws Exception {
-            mockMvc.perform(delete(BASE + "/" + USER_ID).with(asUser()).with(csrf()))
+            mockMvc.perform(delete(BASE + "/" + USER_ID).with(csrf()))
                     .andExpect(status().isForbidden());
 
             verify(adminUserService, never()).deleteUser(any(), any());

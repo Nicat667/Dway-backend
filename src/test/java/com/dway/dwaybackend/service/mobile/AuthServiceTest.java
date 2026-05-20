@@ -37,13 +37,20 @@ import static org.mockito.Mockito.*;
 @DisplayName("AuthService Unit Tests")
 class AuthServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private EmailVerificationRepository emailVerificationRepository;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
-    @Mock private PasswordEncoder passwordEncoder;
-    @Mock private EmailService emailService;
-    @Mock private JwtUtil jwtUtil;
-    @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private EmailVerificationRepository emailVerificationRepository;
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+    @Mock
+    private PasswordEncoder passwordEncoder;
+    @Mock
+    private EmailService emailService;
+    @Mock
+    private JwtUtil jwtUtil;
+    @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
 
     @InjectMocks private AuthService authService;
 

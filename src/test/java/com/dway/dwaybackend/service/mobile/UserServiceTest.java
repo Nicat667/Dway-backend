@@ -39,11 +39,16 @@ import static org.mockito.Mockito.*;
 @DisplayName("UserService Unit Tests")
 class UserServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
-    @Mock private PasswordEncoder passwordEncoder;
-    @Mock private S3Client s3Client;
-    @Mock private UserMapper userMapper;
+    @Mock private
+    UserRepository userRepository;
+    @Mock private
+    RefreshTokenRepository refreshTokenRepository;
+    @Mock private
+    PasswordEncoder passwordEncoder;
+    @Mock private
+    S3Client s3Client;
+    @Mock private
+    UserMapper userMapper;
 
     @InjectMocks private UserService userService;
 

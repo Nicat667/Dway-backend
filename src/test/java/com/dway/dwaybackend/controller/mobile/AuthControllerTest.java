@@ -37,13 +37,10 @@ class AuthControllerTest {
 
     @Autowired
     MockMvc mockMvc;
-
     @Autowired
     ObjectMapper objectMapper;
-
     @MockitoBean
     AuthService authService;
-
     @MockitoBean
     RateLimitService  rateLimitService;
 

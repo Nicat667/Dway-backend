@@ -37,8 +37,10 @@ class UserControllerTest {
 
     @Autowired MockMvc mockMvc;
 
-    @MockitoBean UserService userService;
-    @MockitoBean RateLimitService rateLimitService;
+    @MockitoBean
+    UserService userService;
+    @MockitoBean
+    RateLimitService rateLimitService;
 
     private static final UUID USER_ID = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
     private static final String BASE   = "/api/v1/mobile/users";

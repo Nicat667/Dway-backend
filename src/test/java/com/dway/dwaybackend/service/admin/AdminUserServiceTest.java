@@ -37,10 +37,14 @@ import static org.mockito.Mockito.*;
 @DisplayName("AdminUserService Unit Tests")
 class AdminUserServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
-    @Mock private S3Client s3Client;
-    @Mock private UserMapper userMapper;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+    @Mock
+    private S3Client s3Client;
+    @Mock
+    private UserMapper userMapper;
 
     @InjectMocks private AdminUserService adminUserService;
 
@@ -54,8 +58,6 @@ class AdminUserServiceTest {
     void setUp() {
         ReflectionTestUtils.setField(adminUserService, "bucket", BUCKET);
     }
-
-    // ── Fixtures ──────────────────────────────────────────────────
 
     private User regularUser() {
         return User.builder()
@@ -86,10 +88,6 @@ class AdminUserServiceTest {
         r.setRoles(roles);
         return r;
     }
-
-    // ══════════════════════════════════════════════════════════════
-    // getAllUsers()
-    // ══════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("getAllUsers()")
@@ -144,10 +142,6 @@ class AdminUserServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // getUserById()
-    // ══════════════════════════════════════════════════════════════
-
     @Nested
     @DisplayName("getUserById()")
     class GetUserById {
@@ -177,10 +171,6 @@ class AdminUserServiceTest {
             verify(userMapper, never()).toAdminResponse(any());
         }
     }
-
-    // ══════════════════════════════════════════════════════════════
-    // banUser()
-    // ══════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("banUser()")
@@ -284,10 +274,6 @@ class AdminUserServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // unbanUser()
-    // ══════════════════════════════════════════════════════════════
-
     @Nested
     @DisplayName("unbanUser()")
     class UnbanUser {
@@ -366,10 +352,6 @@ class AdminUserServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // updateUserRoles()
-    // ══════════════════════════════════════════════════════════════
-
     @Nested
     @DisplayName("updateUserRoles()")
     class UpdateUserRoles {
@@ -438,10 +420,6 @@ class AdminUserServiceTest {
             verify(userRepository, never()).save(any());
         }
     }
-
-    // ══════════════════════════════════════════════════════════════
-    // deleteUser()
-    // ══════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("deleteUser()")

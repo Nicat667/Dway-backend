@@ -238,7 +238,7 @@ class UserServiceTest {
             return new MockMultipartFile(
                     "file", "avatar.jpg", "image/jpeg", new byte[1024]);
         }
-        
+
 
         @Test
         @DisplayName("uploads file to S3 and saves URL on user")

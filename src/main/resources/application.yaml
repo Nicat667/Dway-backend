@@ -70,7 +70,7 @@ aws:
   secret-key: ${AWS_SECRET_KEY:dummy}
   s3:
     bucket: ${AWS_S3_BUCKET:dway-backend}
-    region: ${AWS_S3_REGION:us-east-1}
+    region: ${AWS_S3_REGION:eu-north-1}
 
 ai:
   api-key: ${AI_API_KEY:dummy}

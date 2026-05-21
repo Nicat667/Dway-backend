@@ -1,0 +1,46 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+  liquibase:
+    enabled: false
+
+  mail:
+    host: localhost
+    port: 25
+    username: test
+    password: test
+
+app:
+  jwt:
+    secret: dW@y$3cr3tK3y#CI-only-not-real-xK9mN2pR5vT7wY9u
+    access-token-expiry: 900
+    refresh-token-expiry: 2592000
+  email:
+    verification-expiry-minutes: 15
+  rate-limit:
+    enabled: false
+
+aws:
+  access-key: dummy
+  secret-key: dummy
+  s3:
+    bucket: dummy
+    region: eu-north-1
+
+ai:
+  api-key: dummy
+  base-url: https://api.anthropic.com/v1

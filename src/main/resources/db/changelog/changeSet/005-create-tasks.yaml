@@ -25,7 +25,7 @@ databaseChangeLog:
                   name: category_id
                   type: uuid
                   constraints:
-                    nullable: true
+                    nullable: false
                     foreignKeyName: fk_tasks_category_id
                     references: categories(id)
 

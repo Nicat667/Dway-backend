@@ -47,15 +47,13 @@ public class UserController {
 
     @Operation(summary = "Change my password — invalidates all sessions")
     @PostMapping("/me/change-password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(@CurrentUser UUID userId, @RequestBody @Valid ChangePasswordRequest request) {
-        userService.changePassword(userId, request);
+    public ResponseEntity<ApiResponse<Void>> changePassword(@CurrentUser UUID userId, @RequestBody @Valid ChangePasswordRequest request) {userService.changePassword(userId, request);
         return ResponseEntity.ok(ApiResponse.success("Password changed. Please log in again.", null));
     }
 
     @Operation(summary = "Delete my account permanently")
     @DeleteMapping("/me")
-    public ResponseEntity<ApiResponse<Void>> deleteAccount(@CurrentUser UUID userId) {
-        userService.deleteAccount(userId);
+    public ResponseEntity<ApiResponse<Void>> deleteAccount(@CurrentUser UUID userId) {userService.deleteAccount(userId);
         return ResponseEntity.ok(ApiResponse.success("Account deleted", null));
     }
 }

@@ -12,6 +12,7 @@ import com.dway.dwaybackend.entity.PasswordResetToken;
 import com.dway.dwaybackend.entity.RefreshToken;
 import com.dway.dwaybackend.entity.User;
 import com.dway.dwaybackend.infrastructure.email.EmailService;
+import com.dway.dwaybackend.mapper.UserMapper;
 import com.dway.dwaybackend.repository.EmailVerificationRepository;
 import com.dway.dwaybackend.repository.PasswordResetTokenRepository;
 import com.dway.dwaybackend.repository.RefreshTokenRepository;
@@ -41,6 +42,7 @@ public class AuthService {
     private final EmailService emailService;
     private final JwtUtil jwtUtil;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final UserMapper userMapper;
 
     @Value("${app.email.verification-expiry-minutes:15}")
     private int verificationExpiryMinutes;
@@ -235,7 +237,7 @@ public class AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(rawRefreshToken)
-                .user(mapToUserResponse(user))
+                .user(userMapper.toUserResponse(user))
                 .build();
     }
 
@@ -253,19 +255,19 @@ public class AuthService {
         return rawToken;
     }
 
-    private UserResponse mapToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .name(user.getName())
-                .email(user.getEmail())
-                .avatarUrl(user.getAvatarUrl())
-                .plan(user.getPlan())
-                .roles(user.getRoles())
-                .points(user.getPoints())
-                .streak(user.getStreak())
-                .isVerified(user.isVerified())
-                .build();
-    }
+//    private UserResponse mapToUserResponse(User user) {
+//        return UserResponse.builder()
+//                .id(user.getId())
+//                .name(user.getName())
+//                .email(user.getEmail())
+//                .avatarUrl(user.getAvatarUrl())
+//                .plan(user.getPlan())
+//                .roles(user.getRoles())
+//                .points(user.getPoints())
+//                .streak(user.getStreak())
+//                .isVerified(user.isVerified())
+//                .build();
+//    }
 
     private String generateCode() {
         SecureRandom random = new SecureRandom();

@@ -18,9 +18,6 @@ public class UpdateTaskRequest {
 
     private Priority priority;
 
-    // null = remove the category assignment
-    // absent = leave unchanged (but JSON null and absent are indistinguishable,
-    // so we treat null as "remove". Client should only send this field when intent is clear.)
     private UUID categoryId;
 
     private Period period;

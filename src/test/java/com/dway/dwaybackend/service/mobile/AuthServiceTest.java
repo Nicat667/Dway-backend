@@ -6,6 +6,7 @@ import com.dway.dwaybackend.common.exception.verification.InvalidVerificationCod
 import com.dway.dwaybackend.dto.request.auth.*;
 import com.dway.dwaybackend.dto.response.auth.AuthResponse;
 import com.dway.dwaybackend.dto.response.auth.RefreshTokenResponse;
+import com.dway.dwaybackend.dto.response.auth.UserResponse;
 import com.dway.dwaybackend.entity.EmailVerification;
 import com.dway.dwaybackend.entity.PasswordResetToken;
 import com.dway.dwaybackend.entity.RefreshToken;
@@ -13,6 +14,7 @@ import com.dway.dwaybackend.entity.User;
 import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
 import com.dway.dwaybackend.infrastructure.email.EmailService;
+import com.dway.dwaybackend.mapper.UserMapper;
 import com.dway.dwaybackend.repository.*;
 import com.dway.dwaybackend.security.JwtUtil;
 import org.junit.jupiter.api.*;
@@ -37,28 +39,22 @@ import static org.mockito.Mockito.*;
 @DisplayName("AuthService Unit Tests")
 class AuthServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private EmailVerificationRepository emailVerificationRepository;
-    @Mock
-    private RefreshTokenRepository refreshTokenRepository;
-    @Mock
-    private PasswordEncoder passwordEncoder;
-    @Mock
-    private EmailService emailService;
-    @Mock
-    private JwtUtil jwtUtil;
-    @Mock
-    private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private EmailVerificationRepository emailVerificationRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private EmailService emailService;
+    @Mock private JwtUtil jwtUtil;
+    @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock private UserMapper userMapper;  // FIX: was missing, caused NPE in buildAuthResponse
 
     @InjectMocks private AuthService authService;
 
-    private static final UUID USER_ID     = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
-    private static final String EMAIL     = "nicat@gmail.com";
-    private static final String PASSWORD  = "password123";
-    private static final String HASH      = "$2a$12$hashedPassword";
-    private static final String NAME      = "Nicat";
+    private static final UUID USER_ID       = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
+    private static final String EMAIL       = "nicat@gmail.com";
+    private static final String PASSWORD    = "password123";
+    private static final String HASH        = "$2a$12$hashedPassword";
+    private static final String NAME        = "Nicat";
     private static final String ACCESS_TOKEN = "eyJhbGci.access.token";
     private static final String RAW_REFRESH  = "raw-refresh-uuid";
 
@@ -67,6 +63,8 @@ class AuthServiceTest {
         ReflectionTestUtils.setField(authService, "verificationExpiryMinutes", 15);
         ReflectionTestUtils.setField(authService, "refreshTokenExpirySeconds", 2592000L);
     }
+
+    // ------------------------------------------------------------------ helpers
 
     private User verifiedUser() {
         return User.builder()
@@ -80,6 +78,13 @@ class AuthServiceTest {
         return User.builder()
                 .id(USER_ID).name(NAME).email(EMAIL).password(HASH)
                 .isVerified(false).isBanned(false)
+                .plan(Plan.FREE).roles(Set.of(Role.USER))
+                .build();
+    }
+
+    private UserResponse userResponse() {
+        return UserResponse.builder()
+                .id(USER_ID).name(NAME).email(EMAIL)
                 .plan(Plan.FREE).roles(Set.of(Role.USER))
                 .build();
     }
@@ -118,7 +123,7 @@ class AuthServiceTest {
                 .build();
     }
 
-    // register()
+    // ================================================================== register()
 
     @Nested
     @DisplayName("register()")
@@ -229,9 +234,7 @@ class AuthServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // verifyEmail()
-    // ══════════════════════════════════════════════════════════════════════
+    // ================================================================== verifyEmail()
 
     @Nested
     @DisplayName("verifyEmail()")
@@ -255,6 +258,7 @@ class AuthServiceTest {
                     .thenReturn(Optional.of(verification));
             when(jwtUtil.generateAccessToken(eq(USER_ID), any())).thenReturn(ACCESS_TOKEN);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
 
             AuthResponse response = authService.verifyEmail(request());
 
@@ -276,6 +280,7 @@ class AuthServiceTest {
                     .thenReturn(Optional.of(verification));
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
 
             authService.verifyEmail(request());
 
@@ -287,11 +292,13 @@ class AuthServiceTest {
         @DisplayName("deletes all verification codes after successful verification")
         void withValidCode_deletesAllCodes() {
             User user = unverifiedUser();
+
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
                     .thenReturn(Optional.of(validVerification(USER_ID)));
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
 
             authService.verifyEmail(request());
 
@@ -342,10 +349,12 @@ class AuthServiceTest {
         @DisplayName("saves refresh token with correct userId")
         void withValidCode_savesRefreshTokenWithCorrectUserId() {
             User user = unverifiedUser();
+
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
                     .thenReturn(Optional.of(validVerification(USER_ID)));
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
 
             ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
             when(refreshTokenRepository.save(captor.capture()))
@@ -361,9 +370,7 @@ class AuthServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // resendCode()
-    // ══════════════════════════════════════════════════════════════════════
+    // ================================================================== resendCode()
 
     @Nested
     @DisplayName("resendCode()")
@@ -424,9 +431,7 @@ class AuthServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // login()
-    // ══════════════════════════════════════════════════════════════════════
+    // ================================================================== login()
 
     @Nested
     @DisplayName("login()")
@@ -435,10 +440,13 @@ class AuthServiceTest {
         @Test
         @DisplayName("returns AuthResponse with tokens on valid credentials")
         void withValidCredentials_returnsAuthResponse() {
-            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
+            User user = verifiedUser();
+
+            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(PASSWORD, HASH)).thenReturn(true);
             when(jwtUtil.generateAccessToken(eq(USER_ID), any())).thenReturn(ACCESS_TOKEN);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
 
             AuthResponse response = authService.login(loginRequest());
 
@@ -501,9 +509,12 @@ class AuthServiceTest {
         @Test
         @DisplayName("stores refresh token hash not raw token")
         void withValidCredentials_storesHashNotRawToken() {
-            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
+            User user = verifiedUser();
+
+            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(PASSWORD, HASH)).thenReturn(true);
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
 
             ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
             when(refreshTokenRepository.save(captor.capture()))
@@ -518,9 +529,12 @@ class AuthServiceTest {
         @Test
         @DisplayName("stores deviceInfo from request in refresh token")
         void withDeviceInfo_storesDeviceInfoInRefreshToken() {
-            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
+            User user = verifiedUser();
+
+            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(PASSWORD, HASH)).thenReturn(true);
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
 
             ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
             when(refreshTokenRepository.save(captor.capture()))
@@ -532,9 +546,7 @@ class AuthServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // refresh()
-    // ══════════════════════════════════════════════════════════════════════
+    // ================================================================== refresh()
 
     @Nested
     @DisplayName("refresh()")
@@ -615,9 +627,7 @@ class AuthServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // logout()
-    // ══════════════════════════════════════════════════════════════════════
+    // ================================================================== logout()
 
     @Nested
     @DisplayName("logout()")
@@ -665,9 +675,7 @@ class AuthServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // forgotPassword()
-    // ══════════════════════════════════════════════════════════════════════
+    // ================================================================== forgotPassword()
 
     @Nested
     @DisplayName("forgotPassword()")
@@ -756,9 +764,7 @@ class AuthServiceTest {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // resetPassword()
-    // ══════════════════════════════════════════════════════════════════════
+    // ================================================================== resetPassword()
 
     @Nested
     @DisplayName("resetPassword()")
@@ -819,6 +825,7 @@ class AuthServiceTest {
         @DisplayName("deletes all reset tokens after successful reset")
         void withValidCode_deletesAllResetTokens() {
             User user = verifiedUser();
+
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordResetTokenRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
                     .thenReturn(Optional.of(validResetToken()));
@@ -875,6 +882,7 @@ class AuthServiceTest {
         @DisplayName("hashes new password before saving")
         void withValidCode_hashesNewPassword() {
             User user = verifiedUser();
+
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordResetTokenRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
                     .thenReturn(Optional.of(validResetToken()));

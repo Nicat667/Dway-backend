@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -37,7 +39,12 @@ public class AdminUserService {
 
     @Transactional(readOnly = true)
     public Page<AdminUserResponse> getAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable).map(userMapper::toAdminResponse);
+        Pageable cleanPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        return userRepository.findAll(cleanPageable).map(userMapper::toAdminResponse);
     }
 
     @Transactional(readOnly = true)

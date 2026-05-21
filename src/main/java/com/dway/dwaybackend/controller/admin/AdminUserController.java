@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -29,7 +30,7 @@ public class AdminUserController {
 
     @Operation(summary = "Get all users (paginated)")
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<AdminUserResponse>>> getAllUsers(@PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+    public ResponseEntity<ApiResponse<Page<AdminUserResponse>>> getAllUsers(@ParameterObject @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(null, adminUserService.getAllUsers(pageable)));
     }
 

@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
@@ -311,6 +312,16 @@ public class GlobalExceptionHandler {
             ResponseStatusException ex, HttpServletRequest request) {
         return ResponseEntity.status(ex.getStatusCode())
                 .body(ApiResponse.error(ex.getReason(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handle(
+            MissingServletRequestParameterException ex, HttpServletRequest request) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(
+                        "Required parameter '" + ex.getParameterName() + "' is missing",
+                        request.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)

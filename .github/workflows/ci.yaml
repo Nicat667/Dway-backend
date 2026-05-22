@@ -1,8 +1,8 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [ master ]
+  push:
+    branches-ignore: [ master ]
 
 jobs:
   test:
@@ -41,7 +41,14 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable auto-merge
-        run: gh pr merge ${{ github.event.pull_request.number }} --squash --auto
+      - name: Create PR and auto-merge to master
+        run: |
+          gh pr create \
+            --base master \
+            --head ${{ github.ref_name }} \
+            --title "chore: auto-merge ${{ github.ref_name }}" \
+            --body "Automated PR created by CI after passing all checks." \
+            || true
+          gh pr merge ${{ github.ref_name }} --squash --auto
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

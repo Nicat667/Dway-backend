@@ -41,3 +41,5 @@ databaseChangeLog:
       file: db/changelog/changeSet/020-create-password-reset-tokens.yaml
   - include:
       file: db/changelog/changeSet/021-redesign-motivations.yaml
+  - include:
+      file: db/changelog/changeSet/022-redesign-partners.yaml

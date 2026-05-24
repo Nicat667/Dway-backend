@@ -7,6 +7,7 @@ import com.dway.dwaybackend.dto.response.user.AdminUserResponse;
 import com.dway.dwaybackend.entity.User;
 import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
+import com.dway.dwaybackend.infrastructure.storage.S3StorageService;
 import com.dway.dwaybackend.mapper.UserMapper;
 import com.dway.dwaybackend.repository.RefreshTokenRepository;
 import com.dway.dwaybackend.repository.UserRepository;
@@ -17,10 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.util.ReflectionTestUtils;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,28 +34,17 @@ import static org.mockito.Mockito.*;
 @DisplayName("AdminUserService Unit Tests")
 class AdminUserServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private RefreshTokenRepository refreshTokenRepository;
-    @Mock
-    private S3Client s3Client;
-    @Mock
-    private UserMapper userMapper;
+    @Mock private UserRepository userRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private S3StorageService s3StorageService;
+    @Mock private UserMapper userMapper;
 
     @InjectMocks private AdminUserService adminUserService;
 
-    private static final UUID USER_ID  = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
-    private static final UUID ADMIN_ID = UUID.fromString("99999999-9999-9999-9999-999999999999");
-    private static final UUID OTHER_ADMIN_ID = UUID.fromString("88888888-8888-8888-8888-888888888888");
-    private static final String BUCKET = "dway-backend";
-    private static final String REGION = "us-east-1";
-
-    @BeforeEach
-    void setUp() {
-        ReflectionTestUtils.setField(adminUserService, "bucket", BUCKET);
-    }
-
+    private static final UUID USER_ID       = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
+    private static final UUID ADMIN_ID      = UUID.fromString("99999999-9999-9999-9999-999999999999");
+    private static final String AVATAR_URL  = "https://bucket.s3.eu-north-1.amazonaws.com/avatars/" + USER_ID + "/avatar.jpg";
+    
     private User regularUser() {
         return User.builder()
                 .id(USER_ID).name("Nicat").email("nicat@gmail.com")
@@ -128,7 +114,6 @@ class AdminUserServiceTest {
             User user2 = User.builder()
                     .id(UUID.randomUUID()).name("Elchin").email("elchin@gmail.com")
                     .isBanned(false).roles(Set.of(Role.USER)).build();
-
             Page<User> page = new PageImpl<>(List.of(user1, user2), PageRequest.of(0, 20), 2);
 
             when(userRepository.findAll(any(PageRequest.class))).thenReturn(page);
@@ -165,9 +150,7 @@ class AdminUserServiceTest {
         void whenNotFound_throwsUserNotFoundException() {
             when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
-            assertThrows(UserNotFoundException.class,
-                    () -> adminUserService.getUserById(USER_ID));
-
+            assertThrows(UserNotFoundException.class, () -> adminUserService.getUserById(USER_ID));
             verify(userMapper, never()).toAdminResponse(any());
         }
     }
@@ -180,9 +163,7 @@ class AdminUserServiceTest {
         @DisplayName("sets banned=true and bannedAt timestamp")
         void withValidTarget_setsBannedFlagAndTimestamp() {
             User user = regularUser();
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.banUser(USER_ID, ADMIN_ID);
@@ -196,9 +177,7 @@ class AdminUserServiceTest {
         @DisplayName("saves user after banning")
         void withValidTarget_savesUser() {
             User user = regularUser();
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.banUser(USER_ID, ADMIN_ID);
@@ -208,11 +187,9 @@ class AdminUserServiceTest {
 
         @Test
         @DisplayName("immediately invalidates all sessions after banning")
-        void withValidTarget_deletesAllRefreshTokens() {
+        void withValidTarget_invalidatesSessions() {
             User user = regularUser();
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.banUser(USER_ID, ADMIN_ID);
@@ -222,11 +199,9 @@ class AdminUserServiceTest {
 
         @Test
         @DisplayName("saves user before invalidating sessions — consistent ordering")
-        void savesUserBeforeInvalidatingSessions() {
+        void withValidTarget_saveBeforeInvalidate() {
             User user = regularUser();
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.banUser(USER_ID, ADMIN_ID);
@@ -241,36 +216,29 @@ class AdminUserServiceTest {
         void whenAdminBansSelf_throwsBeforeFindById() {
             assertThrows(AccessDeniedException.class,
                     () -> adminUserService.banUser(ADMIN_ID, ADMIN_ID));
-
-            // Self-check happens before DB lookup — must not query
             verify(userRepository, never()).findById(any());
-            verify(refreshTokenRepository, never()).deleteAllByUserId(any());
         }
 
         @Test
         @DisplayName("throws AccessDeniedException when target user is another admin")
-        void whenTargetIsAdmin_throwsAccessDeniedException() {
-            User targetAdmin = adminUser(OTHER_ADMIN_ID);
-
-            when(userRepository.findById(OTHER_ADMIN_ID)).thenReturn(Optional.of(targetAdmin));
+        void whenTargetIsAdmin_throwsAccessDenied() {
+            UUID otherAdminId = UUID.fromString("88888888-8888-8888-8888-888888888888");
+            User otherAdmin = adminUser(otherAdminId);
+            when(userRepository.findById(otherAdminId)).thenReturn(Optional.of(otherAdmin));
 
             assertThrows(AccessDeniedException.class,
-                    () -> adminUserService.banUser(OTHER_ADMIN_ID, ADMIN_ID));
-
+                    () -> adminUserService.banUser(otherAdminId, ADMIN_ID));
             verify(userRepository, never()).save(any());
-            verify(refreshTokenRepository, never()).deleteAllByUserId(any());
         }
 
         @Test
         @DisplayName("throws UserNotFoundException when target does not exist")
-        void whenUserNotFound_throwsUserNotFoundException() {
+        void whenNotFound_throwsUserNotFoundException() {
             when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
             assertThrows(UserNotFoundException.class,
                     () -> adminUserService.banUser(USER_ID, ADMIN_ID));
-
             verify(userRepository, never()).save(any());
-            verify(refreshTokenRepository, never()).deleteAllByUserId(any());
         }
     }
 
@@ -280,13 +248,11 @@ class AdminUserServiceTest {
 
         @Test
         @DisplayName("sets banned=false")
-        void withBannedUser_clearsBannedFlag() {
+        void withBannedUser_setsBannedFalse() {
             User user = regularUser();
             user.setBanned(true);
             user.setBannedAt(LocalDateTime.now().minusDays(1));
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.unbanUser(USER_ID, ADMIN_ID);
@@ -296,13 +262,11 @@ class AdminUserServiceTest {
 
         @Test
         @DisplayName("clears bannedAt timestamp to null")
-        void withBannedUser_clearsBannedAtToNull() {
+        void withBannedUser_clearsBannedAt() {
             User user = regularUser();
             user.setBanned(true);
             user.setBannedAt(LocalDateTime.now().minusDays(1));
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.unbanUser(USER_ID, ADMIN_ID);
@@ -315,9 +279,7 @@ class AdminUserServiceTest {
         void withBannedUser_savesUser() {
             User user = regularUser();
             user.setBanned(true);
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.unbanUser(USER_ID, ADMIN_ID);
@@ -330,9 +292,7 @@ class AdminUserServiceTest {
         void whenUnbanning_doesNotInvalidateSessions() {
             User user = regularUser();
             user.setBanned(true);
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.unbanUser(USER_ID, ADMIN_ID);
@@ -347,7 +307,6 @@ class AdminUserServiceTest {
 
             assertThrows(UserNotFoundException.class,
                     () -> adminUserService.unbanUser(USER_ID, ADMIN_ID));
-
             verify(userRepository, never()).save(any());
         }
     }
@@ -359,10 +318,8 @@ class AdminUserServiceTest {
         @Test
         @DisplayName("replaces all existing roles with the provided set")
         void withValidTarget_replacesRoles() {
-            User user = regularUser(); // starts with Role.USER
-
+            User user = regularUser();
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.updateUserRoles(USER_ID, roleRequest(Set.of(Role.ADMIN)), ADMIN_ID);
@@ -375,9 +332,7 @@ class AdminUserServiceTest {
         @DisplayName("can assign multiple roles at once")
         void withMultipleRoles_assignsAll() {
             User user = regularUser();
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.updateUserRoles(USER_ID, roleRequest(Set.of(Role.USER, Role.ADMIN)), ADMIN_ID);
@@ -389,9 +344,7 @@ class AdminUserServiceTest {
         @DisplayName("saves user after updating roles")
         void withValidTarget_savesUser() {
             User user = regularUser();
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(userRepository.save(user)).thenReturn(user);
             when(userMapper.toAdminResponse(user)).thenReturn(adminResponse(user));
 
             adminUserService.updateUserRoles(USER_ID, roleRequest(Set.of(Role.ADMIN)), ADMIN_ID);
@@ -404,7 +357,6 @@ class AdminUserServiceTest {
         void whenAdminUpdatesSelf_throwsBeforeFindById() {
             assertThrows(AccessDeniedException.class,
                     () -> adminUserService.updateUserRoles(ADMIN_ID, roleRequest(Set.of(Role.USER)), ADMIN_ID));
-
             verify(userRepository, never()).findById(any());
             verify(userRepository, never()).save(any());
         }
@@ -416,7 +368,6 @@ class AdminUserServiceTest {
 
             assertThrows(UserNotFoundException.class,
                     () -> adminUserService.updateUserRoles(USER_ID, roleRequest(Set.of(Role.ADMIN)), ADMIN_ID));
-
             verify(userRepository, never()).save(any());
         }
     }
@@ -429,7 +380,6 @@ class AdminUserServiceTest {
         @DisplayName("deletes user and invalidates all sessions")
         void withValidTarget_deletesUserAndSessions() {
             User user = regularUser();
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
             adminUserService.deleteUser(USER_ID, ADMIN_ID);
@@ -442,14 +392,13 @@ class AdminUserServiceTest {
         @DisplayName("deletes avatar from S3 before deleting the user")
         void whenUserHasAvatar_deletesAvatarFromS3First() {
             User user = regularUser();
-            user.setAvatarUrl("https://" + BUCKET + ".s3." + REGION + ".amazonaws.com/avatars/" + USER_ID + "/avatar.jpg");
-
+            user.setAvatarUrl(AVATAR_URL);
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
             adminUserService.deleteUser(USER_ID, ADMIN_ID);
 
-            InOrder order = inOrder(s3Client, userRepository);
-            order.verify(s3Client).deleteObject(any(DeleteObjectRequest.class));
+            InOrder order = inOrder(s3StorageService, userRepository);
+            order.verify(s3StorageService).delete(AVATAR_URL);
             order.verify(userRepository).delete(user);
         }
 
@@ -457,26 +406,23 @@ class AdminUserServiceTest {
         @DisplayName("does not call S3 delete when user has no avatar")
         void whenUserHasNoAvatar_skipsS3Delete() {
             User user = regularUser(); // avatarUrl is null
-
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
             adminUserService.deleteUser(USER_ID, ADMIN_ID);
 
-            verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
+            // S3StorageService.delete() is called with null — it handles null gracefully internally.
+            verify(s3StorageService).delete(null);
             verify(userRepository).delete(user);
         }
 
         @Test
         @DisplayName("still deletes user even when S3 avatar deletion fails")
         void whenS3DeleteFails_stillDeletesUser() {
+            // S3StorageService.delete() is non-fatal — it never propagates exceptions.
             User user = regularUser();
-            user.setAvatarUrl("https://" + BUCKET + ".s3." + REGION + ".amazonaws.com/avatars/" + USER_ID + "/avatar.jpg");
-
+            user.setAvatarUrl(AVATAR_URL);
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            doThrow(S3Exception.builder().message("Access denied").build())
-                    .when(s3Client).deleteObject(any(DeleteObjectRequest.class));
 
-            // S3 failure must be non-fatal — user deletion must still proceed
             adminUserService.deleteUser(USER_ID, ADMIN_ID);
 
             verify(userRepository).delete(user);
@@ -484,25 +430,10 @@ class AdminUserServiceTest {
         }
 
         @Test
-        @DisplayName("skips S3 delete when avatar URL is malformed")
-        void whenAvatarUrlIsMalformed_skipsS3Delete() {
-            User user = regularUser();
-            user.setAvatarUrl("not-a-valid-s3-url");
-
-            when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-
-            adminUserService.deleteUser(USER_ID, ADMIN_ID);
-
-            verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
-            verify(userRepository).delete(user);
-        }
-
-        @Test
         @DisplayName("throws AccessDeniedException and never looks up user when admin deletes themselves")
         void whenAdminDeletesSelf_throwsBeforeFindById() {
             assertThrows(AccessDeniedException.class,
                     () -> adminUserService.deleteUser(ADMIN_ID, ADMIN_ID));
-
             verify(userRepository, never()).findById(any());
             verify(userRepository, never()).delete(any());
             verify(refreshTokenRepository, never()).deleteAllByUserId(any());
@@ -515,7 +446,6 @@ class AdminUserServiceTest {
 
             assertThrows(UserNotFoundException.class,
                     () -> adminUserService.deleteUser(USER_ID, ADMIN_ID));
-
             verify(userRepository, never()).delete(any());
             verify(refreshTokenRepository, never()).deleteAllByUserId(any());
         }

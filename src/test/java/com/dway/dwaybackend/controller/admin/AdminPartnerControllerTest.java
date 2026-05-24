@@ -182,7 +182,7 @@ class AdminPartnerControllerTest {
     @Nested
     @DisplayName("POST / — createPartner")
     class CreatePartner {
-        
+
         private static final String VALID_JSON =
                 "{\"name\":\"Bravo\",\"description\":\"desc\",\"discountText\":\"20% off\",\"promoCode\":\"BRAVO20\",\"partnerUrl\":\"https://bravo.az\"}";
 

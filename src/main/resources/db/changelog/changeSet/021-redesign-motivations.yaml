@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 021-redesign-motivations-queue
+      author: Nijat
+      comment: >
+        Redesign daily_motivations for round-robin queue system.
+        Removes language and scheduled_date (motivations are now language-agnostic,
+        mobile handles translation on-device). Adds last_shown_date to track
+        queue position — NULL means never shown (shown first), older date means
+        shown longer ago (shown sooner). Admin uploads quotes freely; system
+        picks them one by one until all are used, then cycles from the beginning.
+      changes:
+        - dropUniqueConstraint:
+            tableName: daily_motivations
+            constraintName: uq_daily_motivations_language_scheduled_date
+
+        - dropIndex:
+            tableName: daily_motivations
+            indexName: idx_daily_motivations_scheduled_date_language
+
+        - dropColumn:
+            tableName: daily_motivations
+            columnName: language
+
+        - dropColumn:
+            tableName: daily_motivations
+            columnName: scheduled_date
+
+        - addColumn:
+            tableName: daily_motivations
+            columns:
+              - column:
+                  name: last_shown_date
+                  type: date
+
+        # Index on (last_shown_date, created_at) to make the queue query fast.
+        - createIndex:
+            tableName: daily_motivations
+            indexName: idx_daily_motivations_queue_order
+            columns:
+              - column:
+                  name: last_shown_date
+              - column:
+                  name: created_at

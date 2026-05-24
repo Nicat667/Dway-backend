@@ -1,6 +1,5 @@
 package com.dway.dwaybackend.entity;
 
-import com.dway.dwaybackend.entity.enums.Language;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -11,15 +10,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(
-        name = "daily_motivations",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uq_daily_motivations_language_scheduled_date",
-                        columnNames = {"language", "scheduled_date"}
-                )
-        }
-)
+@Table(name = "daily_motivations")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -38,12 +29,12 @@ public class DailyMotivation {
     @Column(name = "author")
     private String author;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "language", nullable = false)
-    private Language language;
-
-    @Column(name = "scheduled_date", nullable = false)
-    private LocalDate scheduledDate;
+    // Tracks when this motivation was last shown to users.
+    // NULL means never shown — these come first in the queue.
+    // When admin uploads a new motivation, this is set to today
+    // so it joins the back of the queue rather than cutting to the front.
+    @Column(name = "last_shown_date")
+    private LocalDate lastShownDate;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

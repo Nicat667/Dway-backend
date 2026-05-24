@@ -39,3 +39,5 @@ databaseChangeLog:
       file: db/changelog/changeSet/019-create-user-roles.yaml
   - include:
       file: db/changelog/changeSet/020-create-password-reset-tokens.yaml
+  - include:
+      file: db/changelog/changeSet/021-redesign-motivations.yaml

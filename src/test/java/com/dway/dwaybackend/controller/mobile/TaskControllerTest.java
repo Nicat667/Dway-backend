@@ -449,7 +449,7 @@ class TaskControllerTest {
         @DisplayName("200 returns completed task with message")
         void completeTask_success() throws Exception {
             TaskResponse completed = stubTask();
-            completed.setCompleted(true);
+            completed.setIsCompleted(true);
             completed.setCompletedAt(LocalDateTime.now());
 
             when(taskService.completeTask(USER_ID, TASK_ID)).thenReturn(completed);

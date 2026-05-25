@@ -36,8 +36,9 @@ public class Challenge {
     @Column(name = "difficulty", nullable = false)
     private Difficulty difficulty;
 
-    @Column(name = "duration_days", nullable = false)
-    private int durationDays;
+    // Number of tasks the user must complete to finish this challenge
+    @Column(name = "target_count", nullable = false)
+    private int targetCount;
 
     @Column(name = "reward_points", nullable = false)
     private int rewardPoints;
@@ -49,6 +50,10 @@ public class Challenge {
     @Column(name = "participant_count", nullable = false)
     @Builder.Default
     private int participantCount = 0;
+
+    // Optional deadline — if set, users cannot join after this date/time
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

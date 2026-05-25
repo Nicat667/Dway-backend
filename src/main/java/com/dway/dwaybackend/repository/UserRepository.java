@@ -3,6 +3,7 @@ package com.dway.dwaybackend.repository;
 import com.dway.dwaybackend.entity.User;
 import com.dway.dwaybackend.entity.enums.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -19,4 +20,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT u FROM User u JOIN u.roles r WHERE r = :role")
     List<User> findAllByRole(Role role);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE User u SET u.points = u.points + :points WHERE u.id = :userId")
+    void incrementPoints(UUID userId, int points);
 }

@@ -23,7 +23,7 @@ public class TaskResponse {
     private LocalDateTime dueDate;
     private LocalDateTime alarmTime;
     private String notes;
-    private boolean isCompleted;
+    private Boolean isCompleted;   // Boolean wrapper — serializes as "isCompleted" not "completed"
     private LocalDateTime completedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

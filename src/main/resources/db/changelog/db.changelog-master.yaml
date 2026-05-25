@@ -43,3 +43,5 @@ databaseChangeLog:
       file: db/changelog/changeSet/021-redesign-motivations.yaml
   - include:
       file: db/changelog/changeSet/022-redesign-partners.yaml
+  - include:
+      file: db/changelog/changeSet/023-challenge-update.yaml

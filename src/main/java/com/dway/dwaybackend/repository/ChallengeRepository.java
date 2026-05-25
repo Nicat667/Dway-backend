@@ -18,6 +18,8 @@ public interface ChallengeRepository extends JpaRepository<Challenge, UUID> {
 
     Page<Challenge> findByIsActiveTrue(Pageable pageable);
 
+    Page<Challenge> findByIsActive(boolean isActive, Pageable pageable);
+
     boolean existsByTitle(String title);
 
     @Modifying

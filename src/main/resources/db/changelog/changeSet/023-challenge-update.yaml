@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 023-challenge-add-expires-at
+      author: Nijat
+      changes:
+        - addColumn:
+            tableName: challenges
+            columns:
+              - column:
+                  name: expires_at
+                  type: timestamp
+                  constraints:
+                    nullable: true
+
+  - changeSet:
+      id: 023-challenge-rename-duration-days-to-target-count
+      author: Nijat
+      changes:
+        - renameColumn:
+            tableName: challenges
+            oldColumnName: duration_days
+            newColumnName: target_count
+            columnDataType: int

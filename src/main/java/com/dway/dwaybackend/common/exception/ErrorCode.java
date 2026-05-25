@@ -20,12 +20,15 @@ public enum ErrorCode {
 
     TASK_NOT_FOUND              (HttpStatus.NOT_FOUND,             "Task not found"),
     TASK_ACCESS_DENIED          (HttpStatus.FORBIDDEN,             "You do not have access to this task"),
+    TASK_ALREADY_COMPLETED      (HttpStatus.CONFLICT,              "Task is already completed"),
+    TASK_NOT_COMPLETED          (HttpStatus.CONFLICT,              "Task is not completed"),
 
     CATEGORY_NOT_FOUND          (HttpStatus.NOT_FOUND,             "Category not found"),
     CATEGORY_ACCESS_DENIED      (HttpStatus.FORBIDDEN,             "You do not have access to this category"),
     CATEGORY_NAME_EXISTS        (HttpStatus.CONFLICT,              "You already have a category with this name"),
 
     CHALLENGE_NOT_FOUND         (HttpStatus.NOT_FOUND,             "Challenge not found"),
+    CHALLENGE_EXPIRED           (HttpStatus.GONE,                  "This challenge is no longer open for new participants"),
     ALREADY_JOINED              (HttpStatus.CONFLICT,              "You have already joined this challenge"),
     NOT_JOINED                  (HttpStatus.BAD_REQUEST,           "You have not joined this challenge"),
 

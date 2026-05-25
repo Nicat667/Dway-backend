@@ -19,14 +19,13 @@ public interface UserChallengeRepository extends JpaRepository<UserChallenge, UU
 
     boolean existsByUserIdAndChallengeId(UUID userId, UUID challengeId);
 
-    // Kept — used in analytics and achievement check (JOIN_CHALLENGE, ALL_CHALLENGES)
     @Query("""
             SELECT COUNT(uc) FROM UserChallenge uc
             WHERE uc.userId = :userId AND uc.completedAt IS NOT NULL
             """)
     long countCompletedByUserId(UUID userId);
 
-    // Lightweight Set for isJoined computation in service
-    @Query("SELECT uc.challengeId FROM UserChallenge uc WHERE uc.userId = :userId")
-    Set<UUID> findChallengeIdsByUserId(UUID userId);
+    List<UserChallenge> findByUserIdAndCompletedAtIsNull(UUID userId);
+
+    void deleteAllByChallengeId(UUID challengeId);
 }

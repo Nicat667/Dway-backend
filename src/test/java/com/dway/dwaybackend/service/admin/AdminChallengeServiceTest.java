@@ -8,6 +8,7 @@ import com.dway.dwaybackend.entity.Challenge;
 import com.dway.dwaybackend.entity.enums.Difficulty;
 import com.dway.dwaybackend.mapper.ChallengeMapper;
 import com.dway.dwaybackend.repository.ChallengeRepository;
+import com.dway.dwaybackend.repository.UserChallengeRepository;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -28,6 +29,7 @@ class AdminChallengeServiceTest {
 
     @Mock private ChallengeRepository challengeRepository;
     @Mock private ChallengeMapper challengeMapper;
+    @Mock private UserChallengeRepository userChallengeRepository;
 
     @InjectMocks private AdminChallengeService adminChallengeService;
 
@@ -199,7 +201,7 @@ class AdminChallengeServiceTest {
 
         @Test @DisplayName("leaves expiresAt null when not provided")
         void whenRequestOmitsExpiresAt_entityExpiresAtIsNull() {
-            CreateChallengeRequest req = createRequest(); // expiresAt = null
+            CreateChallengeRequest req = createRequest();
             Challenge entity = activeChallenge();
             when(challengeMapper.toEntity(req)).thenReturn(entity);
             when(challengeMapper.toAdminResponse(entity)).thenReturn(adminResponse(entity));
@@ -329,21 +331,26 @@ class AdminChallengeServiceTest {
     @Nested @DisplayName("deleteChallenge()")
     class DeleteChallenge {
 
-        @Test @DisplayName("deletes the challenge entity")
-        void withValidId_deletesChallenge() {
+        @Test @DisplayName("deletes user challenge rows before deleting the challenge")
+        void withValidId_deletesUserChallengesFirst() {
             Challenge c = activeChallenge();
             when(challengeRepository.findById(CHALLENGE_ID)).thenReturn(Optional.of(c));
 
             adminChallengeService.deleteChallenge(CHALLENGE_ID);
 
-            verify(challengeRepository).delete(c);
+            InOrder order = inOrder(userChallengeRepository, challengeRepository);
+            order.verify(userChallengeRepository).deleteAllByChallengeId(CHALLENGE_ID);
+            order.verify(challengeRepository).delete(c);
         }
 
         @Test @DisplayName("throws ChallengeNotFoundException when not found")
         void whenNotFound_throwsChallengeNotFoundException() {
             when(challengeRepository.findById(CHALLENGE_ID)).thenReturn(Optional.empty());
 
-            assertThrows(ChallengeNotFoundException.class, () -> adminChallengeService.deleteChallenge(CHALLENGE_ID));
+            assertThrows(ChallengeNotFoundException.class,
+                    () -> adminChallengeService.deleteChallenge(CHALLENGE_ID));
+
+            verify(userChallengeRepository, never()).deleteAllByChallengeId(any());
             verify(challengeRepository, never()).delete(any());
         }
     }

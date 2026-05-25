@@ -60,8 +60,6 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
             """)
     long countActiveByUserId(UUID userId);
 
-    // For challenge progress — counts tasks completed after a specific point in time.
-    // 'since' is UserChallenge.joinedAt so pre-join completions don't count.
     @Query("""
             SELECT COUNT(t)
             FROM Task t

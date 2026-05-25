@@ -72,7 +72,7 @@ class AdminChallengeServiceTest {
         r.setTitle(title); r.setDifficulty(difficulty);
         return r;
     }
-    
+
     @Nested @DisplayName("getAllChallenges()")
     class GetAllChallenges {
 

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 022-partner-promo-code-nullable
+      author: Nijat
+      changes:
+        - dropNotNullConstraint:
+            tableName: partners
+            columnName: promo_code
+            columnDataType: varchar(50)

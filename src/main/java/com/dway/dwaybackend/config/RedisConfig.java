@@ -59,7 +59,7 @@ public class RedisConfig {
         configs.put("challenges",   defaultConfig.entryTtl(Duration.ofHours(1)));
 
         // Admin rarely creates/updates partners — cache 1h
-        configs.put("partners",     defaultConfig.entryTtl(Duration.ofHours(1)));
+        configs.put("partners",     defaultConfig.entryTtl(Duration.ofHours(24)));
 
         // Achievements never change after seed — cache 6h
         configs.put("achievements", defaultConfig.entryTtl(Duration.ofHours(6)));

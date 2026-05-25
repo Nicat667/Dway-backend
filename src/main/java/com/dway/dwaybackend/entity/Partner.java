@@ -34,7 +34,7 @@ public class Partner {
     @Column(name = "discount_text", nullable = false)
     private String discountText;
 
-    @Column(name = "promo_code", nullable = false)
+    @Column(name = "promo_code")
     private String promoCode;
 
     @Column(name = "partner_url", nullable = false)

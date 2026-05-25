@@ -44,7 +44,7 @@ class AdminUserServiceTest {
     private static final UUID USER_ID       = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
     private static final UUID ADMIN_ID      = UUID.fromString("99999999-9999-9999-9999-999999999999");
     private static final String AVATAR_URL  = "https://bucket.s3.eu-north-1.amazonaws.com/avatars/" + USER_ID + "/avatar.jpg";
-
+    
     private User regularUser() {
         return User.builder()
                 .id(USER_ID).name("Nicat").email("nicat@gmail.com")

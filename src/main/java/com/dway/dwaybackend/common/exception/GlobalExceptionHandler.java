@@ -248,10 +248,15 @@ public class GlobalExceptionHandler {
 
     // ── Validation ───────────────────────────────────────────────
 
+    // Empty body or malformed JSON on endpoints that require @RequestBody.
+    // This is a client error (400), not a server error.
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(HttpMessageNotReadableException ex, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
         log.warn("Unreadable request body: {}", ex.getMessage());
-        return ResponseEntity.badRequest().body(ApiResponse.error("Request body is missing or malformed", request.getRequestURI()));
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Request body is missing or malformed",
+                        request.getRequestURI()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -273,6 +278,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handle(MissingServletRequestParameterException ex, HttpServletRequest request) {
         log.warn(ex.getMessage());
         return ResponseEntity.badRequest().body(ApiResponse.error("Required parameter '" + ex.getParameterName() + "' is missing", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handle(
+            MissingServletRequestParameterException ex, HttpServletRequest request) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(
+                        "Required parameter '" + ex.getParameterName() + "' is missing",
+                        request.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)

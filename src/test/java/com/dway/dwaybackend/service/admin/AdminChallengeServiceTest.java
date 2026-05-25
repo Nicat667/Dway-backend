@@ -72,9 +72,7 @@ class AdminChallengeServiceTest {
         r.setTitle(title); r.setDifficulty(difficulty);
         return r;
     }
-
-    // ── getAllChallenges ───────────────────────────────────────────────────────
-
+    
     @Nested @DisplayName("getAllChallenges()")
     class GetAllChallenges {
 
@@ -129,7 +127,6 @@ class AdminChallengeServiceTest {
         }
     }
 
-    // ── getChallengeById ──────────────────────────────────────────────────────
 
     @Nested @DisplayName("getChallengeById()")
     class GetChallengeById {
@@ -155,7 +152,6 @@ class AdminChallengeServiceTest {
         }
     }
 
-    // ── createChallenge ───────────────────────────────────────────────────────
 
     @Nested @DisplayName("createChallenge()")
     class CreateChallenge {
@@ -224,7 +220,6 @@ class AdminChallengeServiceTest {
         }
     }
 
-    // ── updateChallenge ───────────────────────────────────────────────────────
 
     @Nested @DisplayName("updateChallenge()")
     class UpdateChallenge {
@@ -278,7 +273,7 @@ class AdminChallengeServiceTest {
         }
     }
 
-    // ── toggleActive ──────────────────────────────────────────────────────────
+
 
     @Nested @DisplayName("toggleActive()")
     class ToggleActive {
@@ -326,7 +321,6 @@ class AdminChallengeServiceTest {
         }
     }
 
-    // ── deleteChallenge ───────────────────────────────────────────────────────
 
     @Nested @DisplayName("deleteChallenge()")
     class DeleteChallenge {

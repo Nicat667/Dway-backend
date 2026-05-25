@@ -26,8 +26,11 @@ public class AdminMotivationService {
     private final DailyMotivationRepository motivationRepository;
     private final MotivationMapper motivationMapper;
 
+    // ── Read ─────────────────────────────────────────────────────
+
     @Transactional(readOnly = true)
     public Page<MotivationResponse> getAllMotivations(Pageable pageable) {
+        // Ordered by queue position: never-shown first, then oldest-shown, then by creation date
         return motivationRepository.findAllByOrderByLastShownDateAscCreatedAtAsc(pageable)
                 .map(motivationMapper::toResponse);
     }
@@ -38,6 +41,8 @@ public class AdminMotivationService {
                 .map(motivationMapper::toResponse)
                 .orElseThrow(MotivationNotFoundException::new);
     }
+
+    // ── Write ────────────────────────────────────────────────────
 
     // No cache evict on create — the new motivation joins the back of the queue
     // via lastShownDate = today and does not affect what is shown today.
@@ -52,6 +57,7 @@ public class AdminMotivationService {
         return motivationMapper.toResponse(motivation);
     }
 
+    // Evict cache — admin may have changed the text of today's shown motivation.
     @CacheEvict(value = "motivations", allEntries = true)
     @Transactional
     public MotivationResponse updateMotivation(UUID id, UpdateMotivationRequest request) {
@@ -69,6 +75,8 @@ public class AdminMotivationService {
         return motivationMapper.toResponse(motivation);
     }
 
+    // Evict cache — if today's shown motivation is deleted, the next request
+    // will pick the following one in the queue.
     @CacheEvict(value = "motivations", allEntries = true)
     @Transactional
     public void deleteMotivation(UUID id) {

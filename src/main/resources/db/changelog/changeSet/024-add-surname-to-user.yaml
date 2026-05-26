@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 024-add-surname-to-users
+      author: Nijat
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: surname
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+                  defaultValue: ''

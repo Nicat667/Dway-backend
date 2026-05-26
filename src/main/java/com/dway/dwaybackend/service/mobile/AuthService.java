@@ -6,21 +6,17 @@ import com.dway.dwaybackend.common.exception.verification.InvalidVerificationCod
 import com.dway.dwaybackend.dto.request.auth.*;
 import com.dway.dwaybackend.dto.response.auth.AuthResponse;
 import com.dway.dwaybackend.dto.response.auth.RefreshTokenResponse;
-import com.dway.dwaybackend.dto.response.auth.UserResponse;
-import com.dway.dwaybackend.entity.EmailVerification;
-import com.dway.dwaybackend.entity.PasswordResetToken;
 import com.dway.dwaybackend.entity.RefreshToken;
 import com.dway.dwaybackend.entity.User;
 import com.dway.dwaybackend.infrastructure.email.EmailService;
 import com.dway.dwaybackend.mapper.UserMapper;
-import com.dway.dwaybackend.repository.EmailVerificationRepository;
-import com.dway.dwaybackend.repository.PasswordResetTokenRepository;
 import com.dway.dwaybackend.repository.RefreshTokenRepository;
 import com.dway.dwaybackend.repository.UserRepository;
 import com.dway.dwaybackend.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,26 +25,33 @@ import org.springframework.util.DigestUtils;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final String VERIFY_CODE_PREFIX     = "otp:verify:code:";
+    private static final String VERIFY_COOLDOWN_PREFIX = "otp:verify:cooldown:";
+    private static final String RESET_CODE_PREFIX      = "otp:reset:code:";
+    private static final String RESET_COOLDOWN_PREFIX  = "otp:reset:cooldown:";
+    private static final long   OTP_COOLDOWN_MINUTES   = 2;
+
     private final UserRepository userRepository;
-    private final EmailVerificationRepository emailVerificationRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final JwtUtil jwtUtil;
-    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final UserMapper userMapper;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Value("${app.email.verification-expiry-minutes:15}")
     private int verificationExpiryMinutes;
 
     @Value("${app.jwt.refresh-token-expiry:2592000}")
     private long refreshTokenExpirySeconds;
+
 
     @Transactional
     public void register(RegisterRequest request) {
@@ -58,6 +61,8 @@ public class AuthService {
 
         User user = User.builder()
                 .name(request.getName())
+                .surname(request.getSurname())
+                .country(request.getCountry())
                 .email(request.getEmail().toLowerCase())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .build();
@@ -70,23 +75,19 @@ public class AuthService {
     public AuthResponse verifyEmail(VerifyEmailRequest request) {
         User user = userRepository.findByEmail(request.getEmail().toLowerCase()).orElseThrow(UserNotFoundException::new);
 
-        EmailVerification verification = emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(user.getId(), request.getCode())
-                .orElseThrow(InvalidVerificationCodeException::new);
+        String storedCode = getCode(VERIFY_CODE_PREFIX + user.getId());
 
-        if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (storedCode == null || !storedCode.equals(request.getCode())) {
             throw new InvalidVerificationCodeException();
         }
-
-        verification.setUsed(true);
-        emailVerificationRepository.save(verification);
 
         user.setVerified(true);
         userRepository.save(user);
 
-        emailVerificationRepository.deleteAllByUserId(user.getId());
+        redisTemplate.delete(VERIFY_CODE_PREFIX + user.getId());
+        redisTemplate.delete(VERIFY_COOLDOWN_PREFIX + user.getId());
 
         log.info("User {} verified email successfully", user.getId());
-
         return buildAuthResponse(user, null);
     }
 
@@ -101,31 +102,21 @@ public class AuthService {
         sendVerificationCode(user.getId(), user.getEmail(), user.getName());
     }
 
-    @Transactional
     public void sendVerificationCode(UUID userId, String email, String name) {
-        emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(userId).ifPresent(existing -> {
-                    boolean sentRecently = existing.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(2));
-                    if (sentRecently) {
-                        throw new CodeRecentlySentException();
-                    }
-                });
-
-        emailVerificationRepository.deleteAllByUserId(userId);
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(VERIFY_COOLDOWN_PREFIX + userId))) {
+            throw new CodeRecentlySentException();
+        }
 
         String code = generateCode();
 
-        emailVerificationRepository.save(EmailVerification.builder()
-                .userId(userId)
-                .code(code)
-                .expiresAt(LocalDateTime.now().plusMinutes(verificationExpiryMinutes))
-                .build());
+        redisTemplate.opsForValue().set(VERIFY_CODE_PREFIX + userId, code, verificationExpiryMinutes, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(VERIFY_COOLDOWN_PREFIX + userId, "1", OTP_COOLDOWN_MINUTES, TimeUnit.MINUTES);
 
         emailService.sendVerificationEmail(email, name, code);
     }
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-
         User user = userRepository.findByEmail(request.getEmail().toLowerCase()).orElseThrow(InvalidCredentialsException::new);
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -146,7 +137,6 @@ public class AuthService {
 
     @Transactional
     public RefreshTokenResponse refresh(RefreshTokenRequest request) {
-
         String tokenHash = DigestUtils.md5DigestAsHex(request.getRefreshToken().getBytes());
 
         RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash).orElseThrow(InvalidRefreshTokenException::new);
@@ -173,61 +163,49 @@ public class AuthService {
     @Transactional
     public void logout(LogoutRequest request) {
         String tokenHash = DigestUtils.md5DigestAsHex(request.getRefreshToken().getBytes());
-
         refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(refreshTokenRepository::delete);
     }
 
-    @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
-        userRepository.findByEmail(request.getEmail().toLowerCase())
-                .ifPresent(user -> {
-                    passwordResetTokenRepository
-                            .findTopByUserIdOrderByCreatedAtDesc(user.getId()).ifPresent(existing -> {
-                                if (existing.getCreatedAt()
-                                        .isAfter(LocalDateTime.now().minusMinutes(2))) {
-                                    throw new CodeRecentlySentException();
-                                }
-                            });
+        userRepository.findByEmail(request.getEmail().toLowerCase()).ifPresent(user -> {
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(RESET_COOLDOWN_PREFIX + user.getId()))) {
+                throw new CodeRecentlySentException();
+            }
 
-                    passwordResetTokenRepository.deleteAllByUserId(user.getId());
+            String code = generateCode();
 
-                    String code = generateCode();
+            redisTemplate.opsForValue().set(RESET_CODE_PREFIX + user.getId(), code, verificationExpiryMinutes, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(RESET_COOLDOWN_PREFIX + user.getId(), "1", OTP_COOLDOWN_MINUTES, TimeUnit.MINUTES);
 
-                    passwordResetTokenRepository.save(PasswordResetToken.builder()
-                            .userId(user.getId())
-                            .code(code)
-                            .expiresAt(LocalDateTime.now().plusMinutes(verificationExpiryMinutes))
-                            .used(false)
-                            .build());
-
-                    emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), code);
-                });
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), code);
+        });
     }
 
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail().toLowerCase()).orElseThrow(UserNotFoundException::new);
+        User user = userRepository.findByEmail(request.getEmail().toLowerCase())
+                .orElseThrow(UserNotFoundException::new);
 
-        PasswordResetToken resetToken = passwordResetTokenRepository
-                .findByUserIdAndCodeAndUsedFalse(user.getId(), request.getCode())
-                .orElseThrow(InvalidVerificationCodeException::new);
+        String storedCode = getCode(RESET_CODE_PREFIX + user.getId());
 
-        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (storedCode == null || !storedCode.equals(request.getCode())) {
             throw new InvalidVerificationCodeException();
         }
-
-        resetToken.setUsed(true);
-        passwordResetTokenRepository.save(resetToken);
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        passwordResetTokenRepository.deleteAllByUserId(user.getId());
-
-        // Log out all devices — security measure after password change
         refreshTokenRepository.deleteAllByUserId(user.getId());
 
+        redisTemplate.delete(RESET_CODE_PREFIX + user.getId());
+        redisTemplate.delete(RESET_COOLDOWN_PREFIX + user.getId());
+
         log.info("User {} reset password successfully", user.getId());
+    }
+
+    private String getCode(String key) {
+        Object raw = redisTemplate.opsForValue().get(key);
+        return raw != null ? (String) raw : null;
     }
 
     private AuthResponse buildAuthResponse(User user, String deviceInfo) {
@@ -254,20 +232,6 @@ public class AuthService {
 
         return rawToken;
     }
-
-//    private UserResponse mapToUserResponse(User user) {
-//        return UserResponse.builder()
-//                .id(user.getId())
-//                .name(user.getName())
-//                .email(user.getEmail())
-//                .avatarUrl(user.getAvatarUrl())
-//                .plan(user.getPlan())
-//                .roles(user.getRoles())
-//                .points(user.getPoints())
-//                .streak(user.getStreak())
-//                .isVerified(user.isVerified())
-//                .build();
-//    }
 
     private String generateCode() {
         SecureRandom random = new SecureRandom();

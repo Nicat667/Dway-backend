@@ -6,6 +6,7 @@ import com.dway.dwaybackend.common.exception.verification.InvalidVerificationCod
 import com.dway.dwaybackend.dto.response.auth.AuthResponse;
 import com.dway.dwaybackend.dto.response.auth.RefreshTokenResponse;
 import com.dway.dwaybackend.dto.response.auth.UserResponse;
+import com.dway.dwaybackend.entity.enums.Country;
 import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
 import com.dway.dwaybackend.infrastructure.ratelimit.RateLimitService;
@@ -35,14 +36,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("AuthController")
 class AuthControllerTest {
 
-    @Autowired
-    MockMvc mockMvc;
-    @Autowired
-    ObjectMapper objectMapper;
-    @MockitoBean
-    AuthService authService;
-    @MockitoBean
-    RateLimitService  rateLimitService;
+    @Autowired MockMvc mockMvc;
+    @Autowired ObjectMapper objectMapper;
+    @MockitoBean AuthService authService;
+    @MockitoBean RateLimitService rateLimitService;
 
     private static final String BASE = "/api/v1/auth";
 
@@ -58,6 +55,8 @@ class AuthControllerTest {
                 .user(UserResponse.builder()
                         .id(UUID.randomUUID())
                         .name("Nicat")
+                        .surname("Mammadov")
+                        .country(Country.AZERBAIJAN)
                         .email("nicat@gmail.com")
                         .plan(Plan.FREE)
                         .roles(Set.of(Role.USER))
@@ -67,6 +66,10 @@ class AuthControllerTest {
                         .build())
                 .build();
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // POST /register
+    // ══════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("POST /register")
@@ -84,6 +87,8 @@ class AuthControllerTest {
                             .content("""
                                     {
                                       "name": "Nicat",
+                                      "surname": "Mammadov",
+                                      "country": "Azerbaijan",
                                       "email": "nicat@gmail.com",
                                       "password": "password123"
                                     }
@@ -103,6 +108,64 @@ class AuthControllerTest {
                             .content("""
                                     {
                                       "name": "",
+                                      "surname": "Mammadov",
+                                      "country": "Azerbaijan",
+                                      "email": "nicat@gmail.com",
+                                      "password": "password123"
+                                    }
+                                    """))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("400 when surname is blank")
+        @WithMockUser
+        void register_blankSurname() throws Exception {
+            mockMvc.perform(post(BASE + "/register")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "name": "Nicat",
+                                      "surname": "",
+                                      "country": "Azerbaijan",
+                                      "email": "nicat@gmail.com",
+                                      "password": "password123"
+                                    }
+                                    """))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("400 when country is missing")
+        @WithMockUser
+        void register_missingCountry() throws Exception {
+            mockMvc.perform(post(BASE + "/register")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "name": "Nicat",
+                                      "surname": "Mammadov",
+                                      "email": "nicat@gmail.com",
+                                      "password": "password123"
+                                    }
+                                    """))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("400 when country is not a valid enum value")
+        @WithMockUser
+        void register_invalidCountry() throws Exception {
+            mockMvc.perform(post(BASE + "/register")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "name": "Nicat",
+                                      "surname": "Mammadov",
+                                      "country": "NotARealCountry",
                                       "email": "nicat@gmail.com",
                                       "password": "password123"
                                     }
@@ -120,6 +183,8 @@ class AuthControllerTest {
                             .content("""
                                     {
                                       "name": "Nicat",
+                                      "surname": "Mammadov",
+                                      "country": "Azerbaijan",
                                       "email": "not-an-email",
                                       "password": "password123"
                                     }
@@ -137,6 +202,8 @@ class AuthControllerTest {
                             .content("""
                                     {
                                       "name": "Nicat",
+                                      "surname": "Mammadov",
+                                      "country": "Azerbaijan",
                                       "email": "nicat@gmail.com",
                                       "password": "short"
                                     }
@@ -156,6 +223,8 @@ class AuthControllerTest {
                             .content("""
                                     {
                                       "name": "Nicat",
+                                      "surname": "Mammadov",
+                                      "country": "Azerbaijan",
                                       "email": "nicat@gmail.com",
                                       "password": "password123"
                                     }
@@ -164,6 +233,10 @@ class AuthControllerTest {
                     .andExpect(jsonPath("$.success").value(false));
         }
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // POST /verify-email
+    // ══════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("POST /verify-email")
@@ -245,6 +318,10 @@ class AuthControllerTest {
         }
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // POST /resend-code
+    // ══════════════════════════════════════════════════════════════
+
     @Nested
     @DisplayName("POST /resend-code")
     class ResendCode {
@@ -294,6 +371,10 @@ class AuthControllerTest {
                     .andExpect(jsonPath("$.success").value(false));
         }
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // POST /login
+    // ══════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("POST /login")
@@ -394,6 +475,10 @@ class AuthControllerTest {
         }
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // POST /refresh
+    // ══════════════════════════════════════════════════════════════
+
     @Nested
     @DisplayName("POST /refresh")
     class Refresh {
@@ -445,6 +530,10 @@ class AuthControllerTest {
         }
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // POST /logout
+    // ══════════════════════════════════════════════════════════════
+
     @Nested
     @DisplayName("POST /logout")
     class Logout {
@@ -479,6 +568,10 @@ class AuthControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // POST /forgot-password
+    // ══════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("POST /forgot-password")
@@ -529,6 +622,10 @@ class AuthControllerTest {
                     .andExpect(jsonPath("$.success").value(false));
         }
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // POST /reset-password
+    // ══════════════════════════════════════════════════════════════
 
     @Nested
     @DisplayName("POST /reset-password")

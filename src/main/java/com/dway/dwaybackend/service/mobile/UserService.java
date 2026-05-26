@@ -42,6 +42,9 @@ public class UserService {
         if (request.getName() != null) {
             user.setName(request.getName());
         }
+        if (request.getSurname() != null) {
+            user.setSurname(request.getSurname());
+        }
         if (request.getCountry() != null) {
             user.setCountry(request.getCountry());
         }
@@ -79,7 +82,6 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        // Invalidate all sessions — force re-login on all devices after password change
         refreshTokenRepository.deleteAllByUserId(userId);
 
         log.info("User {} changed password; all sessions invalidated", userId);

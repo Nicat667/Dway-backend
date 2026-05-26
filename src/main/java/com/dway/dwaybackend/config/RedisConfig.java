@@ -52,16 +52,9 @@ public class RedisConfig {
 
         Map<String, RedisCacheConfiguration> configs = new HashMap<>();
 
-        // Same motivation read by all users of that language — cache 24h
         configs.put("motivations",  defaultConfig.entryTtl(Duration.ofHours(24)));
-
-        // Admin rarely creates/updates challenges — cache 1h
         configs.put("challenges",   defaultConfig.entryTtl(Duration.ofHours(1)));
-
-        // Admin rarely creates/updates partners — cache 1h
         configs.put("partners",     defaultConfig.entryTtl(Duration.ofHours(24)));
-
-        // Achievements never change after seed — cache 6h
         configs.put("achievements", defaultConfig.entryTtl(Duration.ofHours(6)));
 
         return RedisCacheManager.builder(connectionFactory)

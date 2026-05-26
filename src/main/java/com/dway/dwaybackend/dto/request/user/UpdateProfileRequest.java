@@ -1,5 +1,6 @@
 package com.dway.dwaybackend.dto.request.user;
 
+import com.dway.dwaybackend.entity.enums.Country;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,11 +9,13 @@ import lombok.Setter;
 @Setter
 public class UpdateProfileRequest {
 
-    @Size(min = 2, max = 60, message = "Name must be between 2 and 60 characters")
+    @Size(min = 2, max = 50, message = "Name must be between 2 and 50 characters")
     private String name;
 
-    @Size(max = 100, message = "Country must be at most 100 characters")
-    private String country;
+    @Size(min = 2, max = 50, message = "Surname must be between 2 and 50 characters")
+    private String surname;
+
+    private Country country;
 
     private String pushToken;
 }

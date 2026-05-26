@@ -1,5 +1,6 @@
 package com.dway.dwaybackend.dto.response.user;
 
+import com.dway.dwaybackend.entity.enums.Country;
 import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
 import lombok.Builder;
@@ -15,9 +16,10 @@ import java.util.UUID;
 public class UserProfileResponse {
     private UUID id;
     private String name;
+    private String surname;
     private String email;
     private String avatarUrl;
-    private String country;
+    private Country country;
     private Plan plan;
     private Set<Role> roles;
     private int points;

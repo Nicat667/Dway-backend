@@ -69,4 +69,14 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
               AND t.completedAt >= :since
             """)
     long countCompletedByUserIdSince(UUID userId, LocalDateTime since);
+
+    @Query("""
+        SELECT t FROM Task t
+        WHERE t.alarmTime >= :from
+          AND t.alarmTime < :to
+          AND t.isDeleted = false
+          AND t.isCompleted = false
+          AND t.alarmSent = false
+        """)
+    List<Task> findPendingAlarms(LocalDateTime from, LocalDateTime to);
 }

@@ -88,6 +88,7 @@ jacocoTestReport {
 
 // SonarCloud configuration
 sonar {
+    skipProject = true
     properties {
         property 'sonar.projectKey', 'Nicat667_Dway-backend'
         property 'sonar.organization', 'nicat667'

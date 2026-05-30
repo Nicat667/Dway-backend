@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 027-achievement-schema-update
+      author: Nijat
+      changes:
+        - dropColumn:
+            tableName: achievements
+            columnName: key
+
+        - dropColumn:
+            tableName: achievements
+            columnName: reward_points
+
+        - addColumn:
+            tableName: achievements
+            columns:
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: type
+                  type: varchar(20)
+                  defaultValue: TASK_COUNT
+                  constraints:
+                    nullable: false

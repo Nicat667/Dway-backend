@@ -1,5 +1,6 @@
 package com.dway.dwaybackend.service.mobile;
 
+import com.dway.dwaybackend.service.mobile.AchievementUnlockService;
 import com.dway.dwaybackend.common.exception.task.TaskAlreadyCompletedException;
 import com.dway.dwaybackend.common.exception.task.TaskNotFoundException;
 import com.dway.dwaybackend.common.exception.task.TaskNotCompletedException;
@@ -34,6 +35,7 @@ class TaskServiceTest {
     @Mock private TaskRepository taskRepository;
     @Mock private TaskMapper taskMapper;
     @Mock private ChallengeProgressService challengeProgressService;
+    @Mock private AchievementUnlockService achievementUnlockService;
 
     @InjectMocks private TaskService taskService;
 

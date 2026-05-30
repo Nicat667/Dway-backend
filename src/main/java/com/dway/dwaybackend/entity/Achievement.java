@@ -1,5 +1,6 @@
 package com.dway.dwaybackend.entity;
 
+import com.dway.dwaybackend.entity.enums.AchievementType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -21,9 +22,6 @@ public class Achievement {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "key", nullable = false, unique = true)
-    private String key;
-
     @Column(name = "title", nullable = false)
     private String title;
 
@@ -33,12 +31,16 @@ public class Achievement {
     @Column(name = "icon", nullable = false)
     private String icon;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false)
+    private AchievementType type;
+
     @Column(name = "threshold", nullable = false)
     private int threshold;
 
-    @Column(name = "reward_points", nullable = false)
+    @Column(name = "is_active", nullable = false)
     @Builder.Default
-    private int rewardPoints = 0;
+    private boolean isActive = false;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

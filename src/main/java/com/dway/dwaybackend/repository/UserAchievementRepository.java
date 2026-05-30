@@ -23,4 +23,6 @@ public interface UserAchievementRepository extends JpaRepository<UserAchievement
     Set<UUID> findAchievementIdsByUserId(UUID userId);
 
     long countByUserId(UUID userId);
+
+    void deleteAllByAchievementId(UUID achievementId);
 }

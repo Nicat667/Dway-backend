@@ -71,8 +71,6 @@ class ChallengeServiceTest {
                 .build();
     }
 
-    // ── getAllChallenges ───────────────────────────────────────────────────────
-
     @Nested @DisplayName("getAllChallenges()")
     class GetAllChallenges {
 

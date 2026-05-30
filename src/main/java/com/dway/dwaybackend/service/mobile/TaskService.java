@@ -27,6 +27,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
     private final ChallengeProgressService challengeProgressService;
+    private final AchievementUnlockService achievementUnlockService;
 
     @Transactional
     public TaskResponse createTask(UUID userId, CreateTaskRequest request) {
@@ -83,6 +84,7 @@ public class TaskService {
         taskRepository.save(task);
 
         challengeProgressService.recalculateProgress(userId);
+        achievementUnlockService.checkAndUnlock(userId);
 
         log.info("User {} completed task {}", userId, taskId);
         return taskMapper.toResponse(task);
@@ -118,7 +120,6 @@ public class TaskService {
     }
 
     private Task findOwnedTask(UUID userId, UUID taskId) {
-        return taskRepository.findByIdAndUserIdAndIsDeletedFalse(taskId, userId)
-                .orElseThrow(TaskNotFoundException::new);
+        return taskRepository.findByIdAndUserIdAndIsDeletedFalse(taskId, userId).orElseThrow(TaskNotFoundException::new);
     }
 }

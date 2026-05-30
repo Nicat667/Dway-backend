@@ -51,3 +51,5 @@ databaseChangeLog:
       file: db/changelog/changeSet/025-country-not-null.yaml
   - include:
       file: db/changelog/changeSet/026-add-alarm-sent-to-tasks.yaml
+  - include:
+      file: db/changelog/changeSet/027-achievement-schema-update.yaml

@@ -49,20 +49,13 @@ public class AdminPartnerController {
         return ResponseEntity.ok(ApiResponse.success(null, adminPartnerService.getPartnerById(id)));
     }
 
-    // NOTE: 'data' is sent as a plain form field (no Content-Type: application/json on the part).
-    // @RequestPart with a complex type requires the part to carry application/json, which
-    // Swagger UI and curl -F do NOT set. @RequestParam receives it as a raw String instead,
-    // and we parse + validate manually — same result, no content-type requirement.
+    
     @Operation(summary = "Create a partner — multipart/form-data: 'file' (icon image) + 'data' (JSON string)")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<PartnerResponse>> createPartner(
-            @RequestPart("file") MultipartFile file,
-            @RequestParam("data") String rawData) {
+    public ResponseEntity<ApiResponse<PartnerResponse>> createPartner(@RequestPart("file") MultipartFile file, @RequestParam("data") String rawData) {
         CreatePartnerRequest data = parseAndValidate(rawData);
         return ResponseEntity.ok(ApiResponse.success("Partner created", adminPartnerService.createPartner(data, file)));
     }
-
-    // ── Private helpers ────────────────────────────────────────────────────────
 
     private CreatePartnerRequest parseAndValidate(String rawData) {
         CreatePartnerRequest request;

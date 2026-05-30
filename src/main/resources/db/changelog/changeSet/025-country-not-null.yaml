@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 025-country-not-null
+      author: Nijat
+      changes:
+        - addNotNullConstraint:
+            tableName: users
+            columnName: country
+            columnDataType: varchar(100)
+            defaultNullValue: 'UNKNOWN'

@@ -3,6 +3,7 @@ package com.dway.dwaybackend.controller.mobile;
 import com.dway.dwaybackend.common.exception.auth.InvalidCredentialsException;
 import com.dway.dwaybackend.common.exception.auth.UserNotFoundException;
 import com.dway.dwaybackend.dto.response.user.UserProfileResponse;
+import com.dway.dwaybackend.entity.enums.Country;
 import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
 import com.dway.dwaybackend.infrastructure.ratelimit.RateLimitService;
@@ -37,20 +38,17 @@ class UserControllerTest {
 
     @Autowired MockMvc mockMvc;
 
-    @MockitoBean
-    UserService userService;
-    @MockitoBean
-    RateLimitService rateLimitService;
+    @MockitoBean UserService userService;
+    @MockitoBean RateLimitService rateLimitService;
 
     private static final UUID USER_ID = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
-    private static final String BASE   = "/api/v1/mobile/users";
+    private static final String BASE  = "/api/v1/mobile/users";
 
     @BeforeEach
     void setUp() {
         when(rateLimitService.tryConsume(any(), any())).thenReturn(true);
     }
 
-    // Sets authentication principal to UUID — required for @CurrentUser to resolve correctly
     private RequestPostProcessor asUser() {
         return authentication(new UsernamePasswordAuthenticationToken(
                 USER_ID, null,
@@ -59,7 +57,8 @@ class UserControllerTest {
 
     private UserProfileResponse stubProfile() {
         return UserProfileResponse.builder()
-                .id(USER_ID).name("Nicat").email("nicat@gmail.com")
+                .id(USER_ID).name("Nicat").surname("Mammadov")
+                .email("nicat@gmail.com").country(Country.AZERBAIJAN)
                 .plan(Plan.FREE).roles(Set.of(Role.USER))
                 .points(0).streak(0).isVerified(true)
                 .build();
@@ -84,6 +83,8 @@ class UserControllerTest {
                     .andExpect(jsonPath("$.data.id").value(USER_ID.toString()))
                     .andExpect(jsonPath("$.data.email").value("nicat@gmail.com"))
                     .andExpect(jsonPath("$.data.name").value("Nicat"))
+                    .andExpect(jsonPath("$.data.surname").value("Mammadov"))
+                    .andExpect(jsonPath("$.data.country").value("Azerbaijan"))
                     .andExpect(jsonPath("$.data.verified").value(true));
         }
 
@@ -124,7 +125,7 @@ class UserControllerTest {
                             .with(asUser()).with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
-                                    { "name": "New Name", "country": "Azerbaijan" }
+                                    { "name": "New Name", "surname": "New Surname", "country": "Azerbaijan" }
                                     """))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
@@ -158,9 +159,9 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("400 when name exceeds 60 characters")
+        @DisplayName("400 when name exceeds 50 characters")
         void updateProfile_nameTooLong() throws Exception {
-            String longName = "A".repeat(61);
+            String longName = "A".repeat(51);
 
             mockMvc.perform(patch(BASE + "/me")
                             .with(asUser()).with(csrf())
@@ -172,14 +173,28 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("400 when country exceeds 100 characters")
-        void updateProfile_countryTooLong() throws Exception {
-            String longCountry = "A".repeat(101);
+        @DisplayName("400 when surname exceeds 50 characters")
+        void updateProfile_surnameTooLong() throws Exception {
+            String longSurname = "A".repeat(51);
 
             mockMvc.perform(patch(BASE + "/me")
                             .with(asUser()).with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{ \"country\": \"" + longCountry + "\" }"))
+                            .content("{ \"surname\": \"" + longSurname + "\" }"))
+                    .andExpect(status().isBadRequest());
+
+            verify(userService, never()).updateProfile(any(), any());
+        }
+
+        @Test
+        @DisplayName("400 when country is not a valid enum value")
+        void updateProfile_invalidCountry() throws Exception {
+            mockMvc.perform(patch(BASE + "/me")
+                            .with(asUser()).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    { "country": "NotARealCountry" }
+                                    """))
                     .andExpect(status().isBadRequest());
 
             verify(userService, never()).updateProfile(any(), any());
@@ -374,7 +389,7 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("400 when currentPassword fields is missing")
+        @DisplayName("400 when currentPassword field is missing")
         void changePassword_missingCurrentPassword() throws Exception {
             mockMvc.perform(post(BASE + "/me/change-password")
                             .with(asUser()).with(csrf())

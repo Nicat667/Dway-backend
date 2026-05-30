@@ -20,13 +20,10 @@ public class FirebaseConfig {
     public FirebaseMessaging firebaseMessaging() throws IOException {
 
         if (FirebaseApp.getApps().isEmpty()) {
-            ClassPathResource serviceAccountResource =
-                    new ClassPathResource("firebase-service-account.json");
+            ClassPathResource serviceAccountResource = new ClassPathResource("firebase-service-account.json");
 
             try (InputStream serviceAccount = serviceAccountResource.getInputStream()) {
-                GoogleCredentials credentials = GoogleCredentials
-                        .fromStream(serviceAccount)
-                        .createScoped("https://www.googleapis.com/auth/cloud-platform");
+                GoogleCredentials credentials = GoogleCredentials.fromStream(serviceAccount).createScoped("https://www.googleapis.com/auth/cloud-platform");
                 FirebaseOptions options = FirebaseOptions.builder()
                         .setCredentials(credentials)
                         .build();

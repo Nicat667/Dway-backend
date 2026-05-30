@@ -7,20 +7,22 @@ import com.dway.dwaybackend.dto.request.auth.*;
 import com.dway.dwaybackend.dto.response.auth.AuthResponse;
 import com.dway.dwaybackend.dto.response.auth.RefreshTokenResponse;
 import com.dway.dwaybackend.dto.response.auth.UserResponse;
-import com.dway.dwaybackend.entity.EmailVerification;
-import com.dway.dwaybackend.entity.PasswordResetToken;
 import com.dway.dwaybackend.entity.RefreshToken;
 import com.dway.dwaybackend.entity.User;
 import com.dway.dwaybackend.entity.enums.Plan;
+import com.dway.dwaybackend.entity.enums.Country;
 import com.dway.dwaybackend.entity.enums.Role;
 import com.dway.dwaybackend.infrastructure.email.EmailService;
 import com.dway.dwaybackend.mapper.UserMapper;
-import com.dway.dwaybackend.repository.*;
+import com.dway.dwaybackend.repository.RefreshTokenRepository;
+import com.dway.dwaybackend.repository.UserRepository;
 import com.dway.dwaybackend.security.JwtUtil;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.DigestUtils;
@@ -29,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,35 +43,44 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private EmailVerificationRepository emailVerificationRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private EmailService emailService;
     @Mock private JwtUtil jwtUtil;
-    @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
-    @Mock private UserMapper userMapper;  // FIX: was missing, caused NPE in buildAuthResponse
+    @Mock private UserMapper userMapper;
+    @Mock private RedisTemplate<String, Object> redisTemplate;
+    @Mock private ValueOperations<String, Object> valueOps;
 
     @InjectMocks private AuthService authService;
 
-    private static final UUID USER_ID       = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
-    private static final String EMAIL       = "nicat@gmail.com";
-    private static final String PASSWORD    = "password123";
-    private static final String HASH        = "$2a$12$hashedPassword";
-    private static final String NAME        = "Nicat";
+    private static final UUID   USER_ID      = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
+    private static final String EMAIL        = "nicat@gmail.com";
+    private static final String PASSWORD     = "password123";
+    private static final String HASH         = "$2a$12$hashedPassword";
+    private static final String NAME         = "Nicat";
+    private static final String SURNAME      = "Mammadov";
+    private static final Country COUNTRY      = Country.AZERBAIJAN;
     private static final String ACCESS_TOKEN = "eyJhbGci.access.token";
     private static final String RAW_REFRESH  = "raw-refresh-uuid";
+    private static final String OTP_CODE     = "847291";
+
+    private static final String VERIFY_CODE_PREFIX     = "otp:verify:code:";
+    private static final String VERIFY_COOLDOWN_PREFIX = "otp:verify:cooldown:";
+    private static final String RESET_CODE_PREFIX      = "otp:reset:code:";
+    private static final String RESET_COOLDOWN_PREFIX  = "otp:reset:cooldown:";
 
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(authService, "verificationExpiryMinutes", 15);
         ReflectionTestUtils.setField(authService, "refreshTokenExpirySeconds", 2592000L);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
     }
 
     // ------------------------------------------------------------------ helpers
 
     private User verifiedUser() {
         return User.builder()
-                .id(USER_ID).name(NAME).email(EMAIL).password(HASH)
+                .id(USER_ID).name(NAME).surname(SURNAME).country(COUNTRY).email(EMAIL).password(HASH)
                 .isVerified(true).isBanned(false)
                 .plan(Plan.FREE).roles(Set.of(Role.USER))
                 .build();
@@ -76,7 +88,7 @@ class AuthServiceTest {
 
     private User unverifiedUser() {
         return User.builder()
-                .id(USER_ID).name(NAME).email(EMAIL).password(HASH)
+                .id(USER_ID).name(NAME).surname(SURNAME).country(COUNTRY).email(EMAIL).password(HASH)
                 .isVerified(false).isBanned(false)
                 .plan(Plan.FREE).roles(Set.of(Role.USER))
                 .build();
@@ -84,14 +96,25 @@ class AuthServiceTest {
 
     private UserResponse userResponse() {
         return UserResponse.builder()
-                .id(USER_ID).name(NAME).email(EMAIL)
+                .id(USER_ID).name(NAME).surname(SURNAME).country(COUNTRY).email(EMAIL)
                 .plan(Plan.FREE).roles(Set.of(Role.USER))
+                .build();
+    }
+
+    private RefreshToken validRefreshToken(UUID userId) {
+        return RefreshToken.builder()
+                .id(UUID.randomUUID()).userId(userId)
+                .tokenHash(DigestUtils.md5DigestAsHex(RAW_REFRESH.getBytes()))
+                .expiresAt(LocalDateTime.now().plusDays(30))
+                .revoked(false)
                 .build();
     }
 
     private RegisterRequest registerRequest() {
         RegisterRequest r = new RegisterRequest();
         r.setName(NAME);
+        r.setSurname(SURNAME);
+        r.setCountry(COUNTRY);
         r.setEmail(EMAIL);
         r.setPassword(PASSWORD);
         return r;
@@ -105,24 +128,6 @@ class AuthServiceTest {
         return r;
     }
 
-    private EmailVerification validVerification(UUID userId) {
-        return EmailVerification.builder()
-                .id(UUID.randomUUID()).userId(userId)
-                .code("847291")
-                .expiresAt(LocalDateTime.now().plusMinutes(10))
-                .used(false)
-                .build();
-    }
-
-    private RefreshToken validRefreshToken(UUID userId) {
-        return RefreshToken.builder()
-                .id(UUID.randomUUID()).userId(userId)
-                .tokenHash(DigestUtils.md5DigestAsHex(RAW_REFRESH.getBytes()))
-                .expiresAt(LocalDateTime.now().plusDays(30))
-                .revoked(false)
-                .build();
-    }
-
     // ================================================================== register()
 
     @Nested
@@ -130,7 +135,7 @@ class AuthServiceTest {
     class Register {
 
         @Test
-        @DisplayName("saves user with hashed password and sends verification email")
+        @DisplayName("saves user with name, surname, hashed password and sends verification email")
         void withValidData_savesUserAndSendsEmail() {
             when(userRepository.existsByEmail(EMAIL)).thenReturn(false);
             when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
@@ -139,13 +144,15 @@ class AuthServiceTest {
                 ReflectionTestUtils.setField(u, "id", USER_ID);
                 return u;
             });
-            when(emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.empty());
+            when(redisTemplate.hasKey(VERIFY_COOLDOWN_PREFIX + USER_ID)).thenReturn(false);
 
             authService.register(registerRequest());
 
             ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
             verify(userRepository).save(userCaptor.capture());
+            assertThat(userCaptor.getValue().getName()).isEqualTo(NAME);
+            assertThat(userCaptor.getValue().getSurname()).isEqualTo(SURNAME);
+            assertThat(userCaptor.getValue().getCountry()).isEqualTo(COUNTRY);
             assertThat(userCaptor.getValue().getEmail()).isEqualTo(EMAIL);
             assertThat(userCaptor.getValue().getPassword()).isEqualTo(HASH);
             assertThat(userCaptor.getValue().isVerified()).isFalse();
@@ -157,6 +164,8 @@ class AuthServiceTest {
         void withMixedCaseEmail_savesAsLowercase() {
             RegisterRequest r = new RegisterRequest();
             r.setName(NAME);
+            r.setSurname(SURNAME);
+            r.setCountry(COUNTRY);
             r.setEmail("Nicat@Gmail.COM");
             r.setPassword(PASSWORD);
 
@@ -167,8 +176,7 @@ class AuthServiceTest {
                 ReflectionTestUtils.setField(u, "id", USER_ID);
                 return u;
             });
-            when(emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.empty());
+            when(redisTemplate.hasKey(VERIFY_COOLDOWN_PREFIX + USER_ID)).thenReturn(false);
 
             authService.register(r);
 
@@ -190,7 +198,7 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("throws CodeRecentlySentException when code sent within 2 minutes")
+        @DisplayName("throws CodeRecentlySentException when cooldown key still alive")
         void whenCodeRecentlySent_throwsCodeRecentlySentException() {
             when(userRepository.existsByEmail(EMAIL)).thenReturn(false);
             when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
@@ -199,14 +207,7 @@ class AuthServiceTest {
                 ReflectionTestUtils.setField(u, "id", USER_ID);
                 return u;
             });
-
-            EmailVerification recent = EmailVerification.builder()
-                    .userId(USER_ID).code("123456")
-                    .createdAt(LocalDateTime.now().minusSeconds(30))
-                    .expiresAt(LocalDateTime.now().plusMinutes(15))
-                    .build();
-            when(emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.of(recent));
+            when(redisTemplate.hasKey(VERIFY_COOLDOWN_PREFIX + USER_ID)).thenReturn(true);
 
             assertThrows(CodeRecentlySentException.class,
                     () -> authService.register(registerRequest()));
@@ -215,8 +216,8 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("deletes old verification codes before creating new one")
-        void withValidData_deletesOldCodesBeforeSaving() {
+        @DisplayName("stores OTP and cooldown in Redis with correct TTLs")
+        void withValidData_storesOtpInRedisWithTtl() {
             when(userRepository.existsByEmail(EMAIL)).thenReturn(false);
             when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
             when(userRepository.save(any(User.class))).thenAnswer(inv -> {
@@ -224,13 +225,12 @@ class AuthServiceTest {
                 ReflectionTestUtils.setField(u, "id", USER_ID);
                 return u;
             });
-            when(emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.empty());
+            when(redisTemplate.hasKey(VERIFY_COOLDOWN_PREFIX + USER_ID)).thenReturn(false);
 
             authService.register(registerRequest());
 
-            verify(emailVerificationRepository).deleteAllByUserId(USER_ID);
-            verify(emailVerificationRepository).save(any(EmailVerification.class));
+            verify(valueOps).set(eq(VERIFY_CODE_PREFIX + USER_ID), anyString(), eq(15L), eq(TimeUnit.MINUTES));
+            verify(valueOps).set(eq(VERIFY_COOLDOWN_PREFIX + USER_ID), eq("1"), eq(2L), eq(TimeUnit.MINUTES));
         }
     }
 
@@ -243,7 +243,7 @@ class AuthServiceTest {
         private VerifyEmailRequest request() {
             VerifyEmailRequest r = new VerifyEmailRequest();
             r.setEmail(EMAIL);
-            r.setCode("847291");
+            r.setCode(OTP_CODE);
             return r;
         }
 
@@ -251,14 +251,11 @@ class AuthServiceTest {
         @DisplayName("marks user verified and returns tokens on valid code")
         void withValidCode_marksVerifiedAndReturnsTokens() {
             User user = unverifiedUser();
-            EmailVerification verification = validVerification(USER_ID);
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-            when(emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(verification));
+            when(valueOps.get(VERIFY_CODE_PREFIX + USER_ID)).thenReturn(OTP_CODE);
             when(jwtUtil.generateAccessToken(eq(USER_ID), any())).thenReturn(ACCESS_TOKEN);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse());
 
             AuthResponse response = authService.verifyEmail(request());
 
@@ -267,42 +264,63 @@ class AuthServiceTest {
             assertThat(response.getAccessToken()).isEqualTo(ACCESS_TOKEN);
             assertThat(response.getRefreshToken()).isNotNull().isNotBlank();
             assertThat(response.getUser().getEmail()).isEqualTo(EMAIL);
+            assertThat(response.getUser().getSurname()).isEqualTo(SURNAME);
         }
 
         @Test
-        @DisplayName("marks verification code as used")
-        void withValidCode_marksCodeAsUsed() {
+        @DisplayName("saves user to DB before deleting Redis keys")
+        void withValidCode_savesUserBeforeDeletingRedisKeys() {
             User user = unverifiedUser();
-            EmailVerification verification = validVerification(USER_ID);
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-            when(emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(verification));
+            when(valueOps.get(VERIFY_CODE_PREFIX + USER_ID)).thenReturn(OTP_CODE);
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse());
+
+            InOrder order = inOrder(userRepository, redisTemplate);
 
             authService.verifyEmail(request());
 
-            assertThat(verification.isUsed()).isTrue();
-            verify(emailVerificationRepository).save(verification);
+            order.verify(userRepository).save(user);
+            order.verify(redisTemplate).delete(VERIFY_CODE_PREFIX + USER_ID);
+            order.verify(redisTemplate).delete(VERIFY_COOLDOWN_PREFIX + USER_ID);
         }
 
         @Test
-        @DisplayName("deletes all verification codes after successful verification")
-        void withValidCode_deletesAllCodes() {
+        @DisplayName("deletes both Redis keys after successful verification")
+        void withValidCode_deletesBothRedisKeys() {
             User user = unverifiedUser();
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-            when(emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(validVerification(USER_ID)));
+            when(valueOps.get(VERIFY_CODE_PREFIX + USER_ID)).thenReturn(OTP_CODE);
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse());
 
             authService.verifyEmail(request());
 
-            verify(emailVerificationRepository).deleteAllByUserId(USER_ID);
+            verify(redisTemplate).delete(VERIFY_CODE_PREFIX + USER_ID);
+            verify(redisTemplate).delete(VERIFY_COOLDOWN_PREFIX + USER_ID);
+        }
+
+        @Test
+        @DisplayName("saves refresh token with correct userId")
+        void withValidCode_savesRefreshTokenWithCorrectUserId() {
+            User user = unverifiedUser();
+            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+            when(valueOps.get(VERIFY_CODE_PREFIX + USER_ID)).thenReturn(OTP_CODE);
+            when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse());
+
+            ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
+            when(refreshTokenRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+            authService.verifyEmail(request());
+
+            RefreshToken saved = captor.getValue();
+            assertThat(saved.getUserId()).isEqualTo(USER_ID);
+            assertThat(saved.getTokenHash()).isNotNull().isNotBlank();
+            assertThat(saved.isRevoked()).isFalse();
+            assertThat(saved.getExpiresAt()).isAfter(LocalDateTime.now());
         }
 
         @Test
@@ -314,11 +332,10 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("throws InvalidVerificationCodeException when code not found")
-        void whenCodeNotFound_throwsInvalidVerificationCodeException() {
+        @DisplayName("throws InvalidVerificationCodeException when Redis key is absent")
+        void whenCodeAbsentInRedis_throwsInvalidVerificationCodeException() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(unverifiedUser()));
-            when(emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.empty());
+            when(valueOps.get(VERIFY_CODE_PREFIX + USER_ID)).thenReturn(null);
 
             assertThrows(InvalidVerificationCodeException.class,
                     () -> authService.verifyEmail(request()));
@@ -327,46 +344,15 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("throws InvalidVerificationCodeException when code expired")
-        void whenCodeExpired_throwsInvalidVerificationCodeException() {
-            EmailVerification expired = EmailVerification.builder()
-                    .id(UUID.randomUUID()).userId(USER_ID).code("847291")
-                    .expiresAt(LocalDateTime.now().minusMinutes(5))
-                    .used(false)
-                    .build();
-
+        @DisplayName("throws InvalidVerificationCodeException when code does not match")
+        void whenCodeMismatch_throwsInvalidVerificationCodeException() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(unverifiedUser()));
-            when(emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(expired));
+            when(valueOps.get(VERIFY_CODE_PREFIX + USER_ID)).thenReturn("999999");
 
             assertThrows(InvalidVerificationCodeException.class,
                     () -> authService.verifyEmail(request()));
 
             verify(userRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("saves refresh token with correct userId")
-        void withValidCode_savesRefreshTokenWithCorrectUserId() {
-            User user = unverifiedUser();
-
-            when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-            when(emailVerificationRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(validVerification(USER_ID)));
-            when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
-            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
-
-            ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
-            when(refreshTokenRepository.save(captor.capture()))
-                    .thenAnswer(inv -> inv.getArgument(0));
-
-            authService.verifyEmail(request());
-
-            RefreshToken saved = captor.getValue();
-            assertThat(saved.getUserId()).isEqualTo(USER_ID);
-            assertThat(saved.getTokenHash()).isNotNull().isNotBlank();
-            assertThat(saved.isRevoked()).isFalse();
-            assertThat(saved.getExpiresAt()).isAfter(LocalDateTime.now());
         }
     }
 
@@ -383,11 +369,10 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("sends new code for unverified user")
+        @DisplayName("sends new code for unverified user when no cooldown active")
         void withUnverifiedUser_sendsCode() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(unverifiedUser()));
-            when(emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.empty());
+            when(redisTemplate.hasKey(VERIFY_COOLDOWN_PREFIX + USER_ID)).thenReturn(false);
 
             authService.resendCode(request());
 
@@ -414,20 +399,15 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("throws CodeRecentlySentException when resent within 2 minutes")
-        void whenCodeRecentlySent_throwsCodeRecentlySentException() {
+        @DisplayName("throws CodeRecentlySentException when cooldown key still alive")
+        void whenCooldownActive_throwsCodeRecentlySentException() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(unverifiedUser()));
-
-            EmailVerification recent = EmailVerification.builder()
-                    .userId(USER_ID).code("123456")
-                    .createdAt(LocalDateTime.now().minusSeconds(60))
-                    .expiresAt(LocalDateTime.now().plusMinutes(15))
-                    .build();
-            when(emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.of(recent));
+            when(redisTemplate.hasKey(VERIFY_COOLDOWN_PREFIX + USER_ID)).thenReturn(true);
 
             assertThrows(CodeRecentlySentException.class,
                     () -> authService.resendCode(request()));
+
+            verify(emailService, never()).sendVerificationEmail(any(), any(), any());
         }
     }
 
@@ -441,19 +421,18 @@ class AuthServiceTest {
         @DisplayName("returns AuthResponse with tokens on valid credentials")
         void withValidCredentials_returnsAuthResponse() {
             User user = verifiedUser();
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(PASSWORD, HASH)).thenReturn(true);
             when(jwtUtil.generateAccessToken(eq(USER_ID), any())).thenReturn(ACCESS_TOKEN);
             when(refreshTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse());
 
             AuthResponse response = authService.login(loginRequest());
 
             assertThat(response.getAccessToken()).isEqualTo(ACCESS_TOKEN);
             assertThat(response.getRefreshToken()).isNotNull().isNotBlank();
             assertThat(response.getUser().getEmail()).isEqualTo(EMAIL);
-            assertThat(response.getUser().getId()).isEqualTo(USER_ID);
+            assertThat(response.getUser().getSurname()).isEqualTo(SURNAME);
         }
 
         @Test
@@ -510,15 +489,13 @@ class AuthServiceTest {
         @DisplayName("stores refresh token hash not raw token")
         void withValidCredentials_storesHashNotRawToken() {
             User user = verifiedUser();
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(PASSWORD, HASH)).thenReturn(true);
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
-            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse());
 
             ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
-            when(refreshTokenRepository.save(captor.capture()))
-                    .thenAnswer(inv -> inv.getArgument(0));
+            when(refreshTokenRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
             AuthResponse response = authService.login(loginRequest());
 
@@ -530,15 +507,13 @@ class AuthServiceTest {
         @DisplayName("stores deviceInfo from request in refresh token")
         void withDeviceInfo_storesDeviceInfoInRefreshToken() {
             User user = verifiedUser();
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(PASSWORD, HASH)).thenReturn(true);
             when(jwtUtil.generateAccessToken(any(), any())).thenReturn(ACCESS_TOKEN);
-            when(userMapper.toUserResponse(user)).thenReturn(userResponse()); // FIX
+            when(userMapper.toUserResponse(user)).thenReturn(userResponse());
 
             ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
-            when(refreshTokenRepository.save(captor.capture()))
-                    .thenAnswer(inv -> inv.getArgument(0));
+            when(refreshTokenRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
             authService.login(loginRequest());
 
@@ -688,11 +663,10 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("sends reset email when user exists")
+        @DisplayName("sends reset email when user exists and no cooldown active")
         void whenUserExists_sendsResetEmail() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
-            when(passwordResetTokenRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.empty());
+            when(redisTemplate.hasKey(RESET_COOLDOWN_PREFIX + USER_ID)).thenReturn(false);
 
             authService.forgotPassword(request());
 
@@ -710,18 +684,10 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("throws CodeRecentlySentException when reset code sent within 2 minutes")
-        void whenCodeRecentlySent_throwsCodeRecentlySentException() {
+        @DisplayName("throws CodeRecentlySentException when cooldown key still alive")
+        void whenCooldownActive_throwsCodeRecentlySentException() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
-
-            PasswordResetToken recent = PasswordResetToken.builder()
-                    .userId(USER_ID).code("123456")
-                    .createdAt(LocalDateTime.now().minusSeconds(90))
-                    .expiresAt(LocalDateTime.now().plusMinutes(15))
-                    .used(false)
-                    .build();
-            when(passwordResetTokenRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.of(recent));
+            when(redisTemplate.hasKey(RESET_COOLDOWN_PREFIX + USER_ID)).thenReturn(true);
 
             assertThrows(CodeRecentlySentException.class,
                     () -> authService.forgotPassword(request()));
@@ -730,37 +696,30 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("deletes old reset tokens before saving new one")
-        void withValidUser_deletesOldTokensFirst() {
+        @DisplayName("stores reset OTP and cooldown in Redis with correct TTLs")
+        void withValidUser_storesResetOtpInRedisWithTtl() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
-            when(passwordResetTokenRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.empty());
+            when(redisTemplate.hasKey(RESET_COOLDOWN_PREFIX + USER_ID)).thenReturn(false);
 
             authService.forgotPassword(request());
 
-            verify(passwordResetTokenRepository).deleteAllByUserId(USER_ID);
-            verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
+            verify(valueOps).set(eq(RESET_CODE_PREFIX + USER_ID), anyString(), eq(15L), eq(TimeUnit.MINUTES));
+            verify(valueOps).set(eq(RESET_COOLDOWN_PREFIX + USER_ID), eq("1"), eq(2L), eq(TimeUnit.MINUTES));
         }
 
         @Test
-        @DisplayName("saves reset token as unused with future expiry")
-        void withValidUser_savesTokenWithCorrectState() {
+        @DisplayName("stored reset code is 6 digits")
+        void withValidUser_storesSixDigitCode() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
-            when(passwordResetTokenRepository.findTopByUserIdOrderByCreatedAtDesc(USER_ID))
-                    .thenReturn(Optional.empty());
+            when(redisTemplate.hasKey(RESET_COOLDOWN_PREFIX + USER_ID)).thenReturn(false);
 
-            ArgumentCaptor<PasswordResetToken> captor =
-                    ArgumentCaptor.forClass(PasswordResetToken.class);
-            when(passwordResetTokenRepository.save(captor.capture()))
-                    .thenAnswer(inv -> inv.getArgument(0));
+            ArgumentCaptor<Object> codeCaptor = ArgumentCaptor.forClass(Object.class);
+            doNothing().when(valueOps).set(eq(RESET_CODE_PREFIX + USER_ID),
+                    codeCaptor.capture(), anyLong(), any());
 
             authService.forgotPassword(request());
 
-            PasswordResetToken saved = captor.getValue();
-            assertThat(saved.getUserId()).isEqualTo(USER_ID);
-            assertThat(saved.isUsed()).isFalse();
-            assertThat(saved.getExpiresAt()).isAfter(LocalDateTime.now());
-            assertThat(saved.getCode()).hasSize(6).containsOnlyDigits();
+            assertThat(codeCaptor.getValue().toString()).hasSize(6).containsOnlyDigits();
         }
     }
 
@@ -773,28 +732,17 @@ class AuthServiceTest {
         private ResetPasswordRequest request() {
             ResetPasswordRequest r = new ResetPasswordRequest();
             r.setEmail(EMAIL);
-            r.setCode("847291");
+            r.setCode(OTP_CODE);
             r.setNewPassword("newPassword123");
             return r;
-        }
-
-        private PasswordResetToken validResetToken() {
-            return PasswordResetToken.builder()
-                    .id(UUID.randomUUID()).userId(USER_ID).code("847291")
-                    .expiresAt(LocalDateTime.now().plusMinutes(10))
-                    .used(false)
-                    .build();
         }
 
         @Test
         @DisplayName("updates password and invalidates all sessions on success")
         void withValidCode_updatesPasswordAndInvalidatesSessions() {
             User user = verifiedUser();
-            PasswordResetToken token = validResetToken();
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-            when(passwordResetTokenRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(token));
+            when(valueOps.get(RESET_CODE_PREFIX + USER_ID)).thenReturn(OTP_CODE);
             when(passwordEncoder.encode("newPassword123")).thenReturn("$2a$newHash");
 
             authService.resetPassword(request());
@@ -805,35 +753,35 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("marks reset token as used")
-        void withValidCode_marksTokenAsUsed() {
+        @DisplayName("saves user and deletes sessions in DB before deleting Redis keys")
+        void withValidCode_dbOperationsBeforeRedisCleanup() {
             User user = verifiedUser();
-            PasswordResetToken token = validResetToken();
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-            when(passwordResetTokenRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(token));
+            when(valueOps.get(RESET_CODE_PREFIX + USER_ID)).thenReturn(OTP_CODE);
             when(passwordEncoder.encode("newPassword123")).thenReturn("$2a$newHash");
+
+            InOrder order = inOrder(userRepository, refreshTokenRepository, redisTemplate);
 
             authService.resetPassword(request());
 
-            assertThat(token.isUsed()).isTrue();
-            verify(passwordResetTokenRepository).save(token);
+            order.verify(userRepository).save(user);
+            order.verify(refreshTokenRepository).deleteAllByUserId(USER_ID);
+            order.verify(redisTemplate).delete(RESET_CODE_PREFIX + USER_ID);
+            order.verify(redisTemplate).delete(RESET_COOLDOWN_PREFIX + USER_ID);
         }
 
         @Test
-        @DisplayName("deletes all reset tokens after successful reset")
-        void withValidCode_deletesAllResetTokens() {
+        @DisplayName("deletes both Redis keys after successful reset")
+        void withValidCode_deletesBothRedisKeys() {
             User user = verifiedUser();
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-            when(passwordResetTokenRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(validResetToken()));
+            when(valueOps.get(RESET_CODE_PREFIX + USER_ID)).thenReturn(OTP_CODE);
             when(passwordEncoder.encode("newPassword123")).thenReturn("$2a$newHash");
 
             authService.resetPassword(request());
 
-            verify(passwordResetTokenRepository).deleteAllByUserId(USER_ID);
+            verify(redisTemplate).delete(RESET_CODE_PREFIX + USER_ID);
+            verify(redisTemplate).delete(RESET_COOLDOWN_PREFIX + USER_ID);
         }
 
         @Test
@@ -846,30 +794,23 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("throws InvalidVerificationCodeException when code not found")
-        void whenCodeNotFound_throwsInvalidVerificationCodeException() {
+        @DisplayName("throws InvalidVerificationCodeException when Redis key absent")
+        void whenCodeAbsentInRedis_throwsInvalidVerificationCodeException() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
-            when(passwordResetTokenRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.empty());
+            when(valueOps.get(RESET_CODE_PREFIX + USER_ID)).thenReturn(null);
 
             assertThrows(InvalidVerificationCodeException.class,
                     () -> authService.resetPassword(request()));
 
             verify(userRepository, never()).save(any());
+            verify(refreshTokenRepository, never()).deleteAllByUserId(any());
         }
 
         @Test
-        @DisplayName("throws InvalidVerificationCodeException when code expired")
-        void whenCodeExpired_throwsInvalidVerificationCodeException() {
-            PasswordResetToken expired = PasswordResetToken.builder()
-                    .id(UUID.randomUUID()).userId(USER_ID).code("847291")
-                    .expiresAt(LocalDateTime.now().minusMinutes(5))
-                    .used(false)
-                    .build();
-
+        @DisplayName("throws InvalidVerificationCodeException when code does not match")
+        void whenCodeMismatch_throwsInvalidVerificationCodeException() {
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(verifiedUser()));
-            when(passwordResetTokenRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(expired));
+            when(valueOps.get(RESET_CODE_PREFIX + USER_ID)).thenReturn("000000");
 
             assertThrows(InvalidVerificationCodeException.class,
                     () -> authService.resetPassword(request()));
@@ -882,10 +823,8 @@ class AuthServiceTest {
         @DisplayName("hashes new password before saving")
         void withValidCode_hashesNewPassword() {
             User user = verifiedUser();
-
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-            when(passwordResetTokenRepository.findByUserIdAndCodeAndUsedFalse(USER_ID, "847291"))
-                    .thenReturn(Optional.of(validResetToken()));
+            when(valueOps.get(RESET_CODE_PREFIX + USER_ID)).thenReturn(OTP_CODE);
             when(passwordEncoder.encode("newPassword123")).thenReturn("$2a$newHash");
 
             authService.resetPassword(request());

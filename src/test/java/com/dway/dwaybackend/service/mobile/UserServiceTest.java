@@ -6,6 +6,7 @@ import com.dway.dwaybackend.dto.request.user.ChangePasswordRequest;
 import com.dway.dwaybackend.dto.request.user.UpdateProfileRequest;
 import com.dway.dwaybackend.dto.response.user.UserProfileResponse;
 import com.dway.dwaybackend.entity.User;
+import com.dway.dwaybackend.entity.enums.Country;
 import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
 import com.dway.dwaybackend.infrastructure.storage.S3StorageService;
@@ -43,15 +44,18 @@ class UserServiceTest {
 
     @InjectMocks private UserService userService;
 
-    private static final UUID   USER_ID  = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
-    private static final String EMAIL    = "nicat@gmail.com";
-    private static final String NAME     = "Nicat";
-    private static final String HASH     = "$2a$12$hashedPassword";
-    private static final String AVATAR   = "https://bucket.s3.eu-north-1.amazonaws.com/avatars/" + USER_ID + "/old.jpg";
+    private static final UUID    USER_ID = UUID.fromString("51f8bf0b-459f-4d36-b290-623fa2f3da0d");
+    private static final String  EMAIL   = "nicat@gmail.com";
+    private static final String  NAME    = "Nicat";
+    private static final String  SURNAME = "Mammadov";
+    private static final Country COUNTRY = Country.AZERBAIJAN;
+    private static final String  HASH    = "$2a$12$hashedPassword";
+    private static final String  AVATAR  = "https://bucket.s3.eu-north-1.amazonaws.com/avatars/" + USER_ID + "/old.jpg";
 
     private User user() {
         return User.builder()
-                .id(USER_ID).name(NAME).email(EMAIL).password(HASH)
+                .id(USER_ID).name(NAME).surname(SURNAME).country(COUNTRY)
+                .email(EMAIL).password(HASH)
                 .isVerified(true).isBanned(false)
                 .plan(Plan.FREE).roles(Set.of(Role.USER))
                 .build();
@@ -59,9 +63,9 @@ class UserServiceTest {
 
     private UserProfileResponse profileResponse(User u) {
         return UserProfileResponse.builder()
-                .id(u.getId()).name(u.getName()).email(u.getEmail())
-                .avatarUrl(u.getAvatarUrl()).country(u.getCountry())
-                .plan(u.getPlan()).roles(u.getRoles())
+                .id(u.getId()).name(u.getName()).surname(u.getSurname())
+                .email(u.getEmail()).avatarUrl(u.getAvatarUrl())
+                .country(u.getCountry()).plan(u.getPlan()).roles(u.getRoles())
                 .points(u.getPoints()).streak(u.getStreak())
                 .isVerified(u.isVerified())
                 .build();
@@ -78,6 +82,8 @@ class UserServiceTest {
         return r;
     }
 
+    // ================================================================== getMyProfile()
+
     @Nested
     @DisplayName("getMyProfile()")
     class GetMyProfile {
@@ -93,6 +99,8 @@ class UserServiceTest {
 
             assertThat(result.getId()).isEqualTo(USER_ID);
             assertThat(result.getEmail()).isEqualTo(EMAIL);
+            assertThat(result.getSurname()).isEqualTo(SURNAME);
+            assertThat(result.getCountry()).isEqualTo(COUNTRY);
             verify(userMapper).toProfileResponse(user);
         }
 
@@ -105,6 +113,8 @@ class UserServiceTest {
             verify(userMapper, never()).toProfileResponse(any());
         }
     }
+
+    // ================================================================== updateProfile()
 
     @Nested
     @DisplayName("updateProfile()")
@@ -127,18 +137,34 @@ class UserServiceTest {
         }
 
         @Test
-        @DisplayName("updates only country when only country is provided")
-        void withCountryOnly_updatesCountry() {
+        @DisplayName("updates only surname when only surname is provided")
+        void withSurnameOnly_updatesSurname() {
             User user = user();
             UpdateProfileRequest request = new UpdateProfileRequest();
-            request.setCountry("Azerbaijan");
+            request.setSurname("NewSurname");
 
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
             when(userMapper.toProfileResponse(user)).thenReturn(profileResponse(user));
 
             userService.updateProfile(USER_ID, request);
 
-            assertThat(user.getCountry()).isEqualTo("Azerbaijan");
+            assertThat(user.getSurname()).isEqualTo("NewSurname");
+            verify(userRepository).save(user);
+        }
+
+        @Test
+        @DisplayName("updates only country when only country is provided")
+        void withCountryOnly_updatesCountry() {
+            User user = user();
+            UpdateProfileRequest request = new UpdateProfileRequest();
+            request.setCountry(Country.GERMANY);
+
+            when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+            when(userMapper.toProfileResponse(user)).thenReturn(profileResponse(user));
+
+            userService.updateProfile(USER_ID, request);
+
+            assertThat(user.getCountry()).isEqualTo(Country.GERMANY);
             verify(userRepository).save(user);
         }
 
@@ -158,12 +184,13 @@ class UserServiceTest {
         }
 
         @Test
-        @DisplayName("updates all three fields when all are provided")
+        @DisplayName("updates all fields when all are provided")
         void withAllFields_updatesAllFields() {
             User user = user();
             UpdateProfileRequest request = new UpdateProfileRequest();
             request.setName("New Name");
-            request.setCountry("Germany");
+            request.setSurname("New Surname");
+            request.setCountry(Country.GERMANY);
             request.setPushToken("fcm-token-abc");
 
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
@@ -172,7 +199,8 @@ class UserServiceTest {
             userService.updateProfile(USER_ID, request);
 
             assertThat(user.getName()).isEqualTo("New Name");
-            assertThat(user.getCountry()).isEqualTo("Germany");
+            assertThat(user.getSurname()).isEqualTo("New Surname");
+            assertThat(user.getCountry()).isEqualTo(Country.GERMANY);
             assertThat(user.getPushToken()).isEqualTo("fcm-token-abc");
             verify(userRepository).save(user);
         }
@@ -180,8 +208,7 @@ class UserServiceTest {
         @Test
         @DisplayName("does not overwrite existing fields when request fields are null")
         void withNullFields_doesNotOverwriteExistingValues() {
-            User user = user();
-            user.setCountry("Turkey");
+            User user = user(); // name=Nicat, surname=Mammadov, country=AZERBAIJAN
 
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
             when(userMapper.toProfileResponse(user)).thenReturn(profileResponse(user));
@@ -189,7 +216,8 @@ class UserServiceTest {
             userService.updateProfile(USER_ID, new UpdateProfileRequest());
 
             assertThat(user.getName()).isEqualTo(NAME);
-            assertThat(user.getCountry()).isEqualTo("Turkey");
+            assertThat(user.getSurname()).isEqualTo(SURNAME);
+            assertThat(user.getCountry()).isEqualTo(COUNTRY);
         }
 
         @Test
@@ -202,6 +230,8 @@ class UserServiceTest {
             verify(userRepository, never()).save(any());
         }
     }
+
+    // ================================================================== uploadAvatar()
 
     @Nested
     @DisplayName("uploadAvatar()")
@@ -256,7 +286,7 @@ class UserServiceTest {
         @Test
         @DisplayName("does not call delete when user has no existing avatar")
         void whenUserHasNoAvatar_doesNotCallDelete() {
-            User user = user(); // avatarUrl is null
+            User user = user();
 
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
             when(s3StorageService.upload(any(), any())).thenReturn("https://new-url");
@@ -270,13 +300,11 @@ class UserServiceTest {
         @Test
         @DisplayName("still uploads new avatar even when S3 delete of old one fails")
         void whenOldAvatarDeleteFails_stillUploadsNewAvatar() {
-
             User user = user();
             user.setAvatarUrl(AVATAR);
-            String newUrl = "https://new-url";
 
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-            when(s3StorageService.upload(any(), any())).thenReturn(newUrl);
+            when(s3StorageService.upload(any(), any())).thenReturn("https://new-url");
             when(userMapper.toProfileResponse(user)).thenReturn(profileResponse(user));
 
             userService.uploadAvatar(USER_ID, validJpeg());
@@ -288,7 +316,6 @@ class UserServiceTest {
         @Test
         @DisplayName("propagates ResponseStatusException from S3StorageService (e.g. invalid file)")
         void whenS3ServiceThrows_propagatesException() {
-
             User user = user();
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
             when(s3StorageService.upload(any(), any()))
@@ -312,6 +339,7 @@ class UserServiceTest {
         }
     }
 
+    // ================================================================== changePassword()
 
     @Nested
     @DisplayName("changePassword()")
@@ -386,6 +414,7 @@ class UserServiceTest {
         }
     }
 
+    // ================================================================== deleteAccount()
 
     @Nested
     @DisplayName("deleteAccount()")
@@ -420,12 +449,11 @@ class UserServiceTest {
         @Test
         @DisplayName("does not call S3 delete when user has no avatar")
         void whenUserHasNoAvatar_skipsS3Delete() {
-            User user = user(); // avatarUrl is null
+            User user = user();
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
             userService.deleteAccount(USER_ID);
 
-            // S3StorageService.delete() is called with null — it handles null gracefully internally.
             verify(s3StorageService).delete(null);
             verify(userRepository).delete(user);
         }
@@ -433,7 +461,6 @@ class UserServiceTest {
         @Test
         @DisplayName("still deletes user even when S3 avatar deletion fails")
         void whenS3DeleteFails_stillDeletesUser() {
-            // S3StorageService.delete() is non-fatal — it never propagates exceptions.
             User user = user();
             user.setAvatarUrl(AVATAR);
             when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));

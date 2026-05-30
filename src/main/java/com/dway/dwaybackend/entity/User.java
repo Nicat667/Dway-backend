@@ -1,5 +1,6 @@
 package com.dway.dwaybackend.entity;
 
+import com.dway.dwaybackend.entity.enums.Country;
 import com.dway.dwaybackend.entity.enums.Plan;
 import com.dway.dwaybackend.entity.enums.Role;
 import jakarta.persistence.*;
@@ -29,6 +30,9 @@ public class User {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "surname", nullable = false)
+    private String surname;
+
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
@@ -54,8 +58,9 @@ public class User {
     @Builder.Default
     private Plan plan = Plan.FREE;
 
-    @Column(name = "country")
-    private String country;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "country", nullable = false)
+    private Country country;
 
     @Column(name = "points", nullable = false)
     @Builder.Default

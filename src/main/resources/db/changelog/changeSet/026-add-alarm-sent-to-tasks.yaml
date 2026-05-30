@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 026-add-alarm-sent-to-tasks
+      author: Nijat
+      changes:
+        - addColumn:
+            tableName: tasks
+            columns:
+              - column:
+                  name: alarm_sent
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_alarm_time_unsent
+            columns:
+              - column:
+                  name: alarm_time
+              - column:
+                  name: alarm_sent
+            where: alarm_sent = false AND alarm_time IS NOT NULL

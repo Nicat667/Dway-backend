@@ -47,6 +47,10 @@ public class Task {
     @Column(name = "alarm_time")
     private LocalDateTime alarmTime;
 
+    @Column(name = "alarm_sent", nullable = false)
+    @Builder.Default
+    private boolean alarmSent = false;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches-ignore: [ master ]
+    branches: [ development ]
 
 jobs:
   test:
@@ -41,14 +41,14 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create PR and auto-merge to master
+      - name: Merge development into master
         run: |
           gh pr create \
             --base master \
-            --head ${{ github.ref_name }} \
-            --title "chore: auto-merge ${{ github.ref_name }}" \
-            --body "Automated PR created by CI after passing all checks." \
+            --head development \
+            --title "chore: sync development → master" \
+            --body "Automated PR: CI passed on development." \
             || true
-          gh pr merge ${{ github.ref_name }} --squash --auto
+          gh pr merge development --merge --auto
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

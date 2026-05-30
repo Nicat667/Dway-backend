@@ -11,7 +11,6 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface TaskMapper {
 
-    // Ignore auto-managed fields when mapping from request to entity
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "isCompleted", ignore = true)
@@ -19,6 +18,7 @@ public interface TaskMapper {
     @Mapping(target = "isDeleted", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "alarmSent", ignore = true)
     Task toEntity(CreateTaskRequest request);
 
     TaskResponse toResponse(Task task);

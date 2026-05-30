@@ -1,4 +1,4 @@
-package com.dway.dwaybackend.infrastructure.notification;
+package com.dway.dwaybackend.infrastructure.firebase;
 
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;

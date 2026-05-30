@@ -2,7 +2,7 @@ package com.dway.dwaybackend.scheduler;
 
 import com.dway.dwaybackend.entity.Task;
 import com.dway.dwaybackend.entity.User;
-import com.dway.dwaybackend.infrastructure.notification.FcmService;
+import com.dway.dwaybackend.infrastructure.firebase.FcmService;
 import com.dway.dwaybackend.repository.TaskRepository;
 import com.dway.dwaybackend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

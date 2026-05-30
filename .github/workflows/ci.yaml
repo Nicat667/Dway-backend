@@ -1,12 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches: [ development ]
   pull_request:
-    branches: [ master, development ]
+    branches: [ development ]
+    types: [ opened, synchronize, reopened ]
 
 jobs:
+
   test:
     name: Build & Test
     runs-on: ubuntu-latest
@@ -15,14 +15,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # full history required for SonarCloud blame data
+          fetch-depth: 0
 
       - name: Set up Java 25
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: 'temurin'
-          cache: gradle  # caches ~/.gradle between runs — saves ~2 min
+          cache: gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -31,7 +31,7 @@ jobs:
         run: ./gradlew clean test jacocoTestReport --no-daemon
 
       - name: Upload test report
-        if: always()  # uploads even if tests fail — so you can see what broke
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-report
@@ -43,10 +43,20 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  merge-pr-to-development:
+    name: Merge PR → development
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Merge pull request
+        run: gh pr merge ${{ github.event.pull_request.number }} --merge --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   merge-to-master:
     name: Merge development → master
-    needs: test  # only runs if test job passed
-    if: github.ref == 'refs/heads/development' && github.event_name == 'push'
+    needs: merge-pr-to-development
     runs-on: ubuntu-latest
 
     steps:
@@ -61,10 +71,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin master
-          COMMITS=$(git rev-list origin/master..HEAD --count)
+          git fetch origin development
+          git checkout master
+          COMMITS=$(git rev-list origin/master..origin/development --count)
           if [ "$COMMITS" -gt "0" ]; then
-            git checkout master
-            git merge development --no-ff -m "chore: auto-merge development into master [ci]"
+            git merge origin/development --no-ff -m "chore: auto-merge development into master [ci]"
             git push origin master
           else
             echo "No new commits ahead of master — skipping merge."

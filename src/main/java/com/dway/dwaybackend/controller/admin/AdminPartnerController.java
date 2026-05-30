@@ -49,7 +49,7 @@ public class AdminPartnerController {
         return ResponseEntity.ok(ApiResponse.success(null, adminPartnerService.getPartnerById(id)));
     }
 
-    
+
     @Operation(summary = "Create a partner — multipart/form-data: 'file' (icon image) + 'data' (JSON string)")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<PartnerResponse>> createPartner(@RequestPart("file") MultipartFile file, @RequestParam("data") String rawData) {
